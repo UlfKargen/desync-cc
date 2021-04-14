@@ -26,6 +26,9 @@ echo "Using subcommand wrapper: $DESYNC_CC_SUB_WRAPPER"
 export DESYNC_TOOL=$BASE_DIR/build/desync
 echo "Using desync path: $DESYNC_CC_SUB_WRAPPER"
 
+# Clean the project.
+make clean || exit
+
 # Compile the project (run make) using the wrapper.
 make -j $(nproc) "CC=$CC_WRAPPER" || exit
 

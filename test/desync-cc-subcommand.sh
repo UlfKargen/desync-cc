@@ -23,7 +23,7 @@ elif [[ "$COMMAND_NAME" = "as" ]]; then
     # Extract the assembly filenames from the assembler arguments.
     ASSEMBLY_FILES=""
     for ARG in "${@:2}"; do
-        if [[ "${ARG: -2}" = ".s" ]]; then
+        if [[ "${ARG: -2}" = ".s" || "${ARG: -2}" = ".S" || "${ARG: -3}" = ".sx" ]]; then
             if [[ "$ASSEMBLY_FILES" = "" ]]; then
                 ASSEMBLY_FILES="$ARG"
             else
