@@ -23,7 +23,7 @@ export DESYNC_CC_SUB_WRAPPER=$BASE_DIR/test/desync-cc-subcommand.sh
 echo "Using subcommand wrapper: $DESYNC_CC_SUB_WRAPPER"
 
 # Export path to desync executable.
-export DESYNC_TOOL=$BASE_DIR/build/desync
+export DESYNC_TOOL=$BASE_DIR/build/bin/desync
 echo "Using desync path: $DESYNC_CC_SUB_WRAPPER"
 
 # Clean the project.
