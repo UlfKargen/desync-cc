@@ -14,7 +14,7 @@ find_program(CLANG_TIDY NAMES clang-tidy-7 clang-tidy-6.0 clang-tidy-5.0 clang-t
 
 add_executable(
 	desync-pred
-	"src/main.cpp"
+	"src/pred/main.cpp"
 )
 
 target_include_directories(
@@ -88,7 +88,7 @@ add_custom_target(
 add_custom_target(
 	symlink-desync-junk-file ALL
 	COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/desync/desync-junk" "${CMAKE_INSTALL_BINDIR}/desync-junk"
-	COMMENT "Creating symlink to desync file at ${CMAKE_INSTALL_BINDIR}/desync-junk"
+	COMMENT "Creating symlink to desync-junk file at ${CMAKE_INSTALL_BINDIR}/desync-junk"
 	DEPENDS desync-pred
 )
 
