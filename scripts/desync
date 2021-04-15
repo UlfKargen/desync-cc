@@ -9,6 +9,9 @@ fi
 # Execute the appropriate command.
 if [[ "$1" = "-p" ]]; then
     $(dirname "$0")/desync-pred "${@:2}"
-else
+elif [[ "$1" = "-j" ]]; then
     $(dirname "$0")/desync-junk "${@:2}"
+else
+    echo "Unknown command flag \"$1\"."
+    exit 2
 fi
