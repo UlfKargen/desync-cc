@@ -33,7 +33,7 @@ elif [[ "$COMMAND_NAME" = "as" ]]; then
     done
 
     # Run our tool with the -p flag.
-    "$DESYNC_TOOL" -p "$ASSEMBLY_FILES" || exit
+    "$DESYNC_TOOL" -p "$ASSEMBLY_FILES" # Don't exit on failure.
 
     # Run the assembler.
     "$@" || exit
@@ -59,7 +59,7 @@ elif [[ "$COMMAND_NAME" = "collect2" || "$COMMAND_NAME" = "ld" ]]; then
     "$@" || exit
 
     # Run our tool with the -j flag.
-    "$DESYNC_TOOL" -j "$OUTPUT_FILE" || exit
+    "$DESYNC_TOOL" -j "$OUTPUT_FILE" # Don't exit on failure.
 else
     # Run any other commands as normal.
     echo "Running other: $@"
