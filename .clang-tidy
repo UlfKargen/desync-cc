@@ -4,5 +4,11 @@ Checks: "clang-analyzer-*,
          modernize-*,
          performance-*,
          portability-*,
-         readability-*"
+         readability-*,
+         -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+         -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+         -cppcoreguidelines-pro-bounds-constant-array-index,
+         -cppcoreguidelines-pro-type-reinterpret-cast,
+         -cppcoreguidelines-pro-type-union-access,
+         -readability-implicit-bool-conversion"
 WarningsAsErrors: "*"

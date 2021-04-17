@@ -14,7 +14,14 @@ find_program(CLANG_TIDY NAMES clang-tidy-7 clang-tidy-6.0 clang-tidy-5.0 clang-t
 
 add_executable(
 	desync-pred
+	"src/pred/assembler.hpp"
+	"src/pred/assembly_parser.hpp"
+	"src/pred/control_flow_graph.hpp"
+	"src/pred/desynchronizer.hpp"
+	"src/pred/disassembler.hpp"
 	"src/pred/main.cpp"
+	"src/util/file.hpp"
+	"src/util/string.hpp"
 )
 
 target_include_directories(
