@@ -29,6 +29,9 @@ auto main(int argc, char* argv[]) -> int {
 			return EXIT_FAILURE;
 		}
 
+		// TODO: Parse options from environment variable/config file
+		// (use std::getenv("DESYNC_OPTIONS")/std::getenv("DESYNC_OPTIONS_FILE") from <cstdlib>).
+
 		auto error = false;
 		for (auto i = 1; i < argc; ++i) {
 			const auto* const filename = argv[i];
