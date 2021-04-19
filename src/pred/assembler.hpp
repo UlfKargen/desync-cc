@@ -11,14 +11,6 @@
 namespace desync {
 
 class assembler final {
-private:
-	static auto symbol_resolver(const char* /*symbol*/, std::uint64_t* value) -> bool {
-		// TODO: Fix "Literal value out of range for directive (KS_ERR_ASM_DIRECTIVE_VALUE_RANGE)"
-		// (probably caused by huge offsets in relative jumps due to all symbols being treated as 0 here).
-		*value = 0;
-		return true;
-	}
-
 public:
 	struct error final : std::runtime_error {
 		[[nodiscard]] explicit error(const char* message)
@@ -115,6 +107,11 @@ public:
 	}
 
 private:
+	static auto symbol_resolver(const char* /*symbol*/, std::uint64_t* value) -> bool {
+		*value = 0;
+		return true;
+	}
+
 	ks_engine* m_ks = nullptr;
 };
 

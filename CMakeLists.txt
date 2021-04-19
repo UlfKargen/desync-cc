@@ -21,6 +21,7 @@ add_executable(
 	"src/pred/disassembler.hpp"
 	"src/pred/main.cpp"
 	"src/util/file.hpp"
+	"src/util/print.hpp"
 	"src/util/string.hpp"
 )
 

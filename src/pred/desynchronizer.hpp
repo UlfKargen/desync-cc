@@ -5,6 +5,7 @@
 #include <stdexcept>                   // std::runtime_error
 #include <string>                      // std::string
 #include <string_view>                 // std::string_view
+#include <util/print.hpp>              // desync::util::println
 #include <util/string.hpp>             // desync::util::concat
 
 namespace desync {
@@ -13,14 +14,35 @@ class desynchronizer final {
 public:
 	struct error final : std::runtime_error {
 		[[nodiscard]] explicit error(const auto&... args)
-			: std::runtime_error(desync::util::concat(args...)) {}
+			: std::runtime_error(util::concat(args...)) {}
 	};
 
-	[[nodiscard]] static auto process_assembly(desync::assembler& assembler, desync::disassembler& disassembler, std::string_view assembly) -> std::string {
-		// TODO: Remove [[maybe_unused]].
-		[[maybe_unused]] const auto cfg = control_flow_graph{assembler, disassembler, assembly};
+	[[nodiscard]] static auto process_assembly(assembler& assembler, disassembler& disassembler, std::string_view assembly) -> std::string {
+		auto result = std::string{assembly};
+		const auto cfg = control_flow_graph{assembler, disassembler, assembly};
+
+		// TODO: Remove this example code.
+		const auto get_instruction = [&cfg](std::size_t i) -> const control_flow_graph::instruction& {
+			if (i < cfg.instructions().size()) {
+				return cfg.instructions()[i];
+			}
+			throw error{"No instruction at ", i, "!"};
+		};
+
+		const auto get_file_index = [&assembly](const control_flow_graph::instruction& instruction) -> std::size_t {
+			return instruction.string.data() - assembly.data();
+		};
+
+		const auto* const main_block = cfg.symbol("main");
+		if (main_block) {
+			const auto& instruction = get_instruction(main_block->begin);
+			const auto file_index = get_file_index(instruction);
+			util::println("Main is at: ", file_index);
+			util::println("Assembly, starting at main: ", assembly.substr(file_index));
+		}
+
 		// TODO: Insert predicates.
-		return std::string{assembly};
+		return result;
 	}
 };
 

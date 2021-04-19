@@ -119,7 +119,7 @@ public:
 	[[nodiscard]] auto disassemble(std::basic_string_view<unsigned char> code, std::uint64_t address = 0, std::size_t count = 0) const -> disassemble_result {
 		cs_insn* insn = nullptr;
 		const auto size = cs_disasm(m_cs, code.data(), code.size(), address, count, &insn);
-		if (size == 0) {
+		if (size < count) {
 			throw error{cs_strerror(cs_errno(m_cs))};
 		}
 		return disassemble_result{instruction_list{insn, size}};

@@ -12,7 +12,7 @@
 #include <unordered_map>            // std::unordered_map
 #include <util/string.hpp>          // desync::util::concat
 #include <utility>                  // std::move
-#include <vector>                   // std::vector, std::erase
+#include <vector>                   // std::vector
 
 namespace desync {
 
@@ -20,12 +20,12 @@ class control_flow_graph final {
 public:
 	struct error final : std::runtime_error {
 		[[nodiscard]] explicit error(const auto&... args)
-			: std::runtime_error(desync::util::concat(args...)) {}
+			: std::runtime_error(util::concat(args...)) {}
 	};
 
 	struct instruction final {
-		std::string_view string{};                               // Assembly substring that the instruction originated from.
-		desync::disassembler::disassemble_result disassembled{}; // Info about the machine code of the instruction.
+		std::string_view string{};                       // Assembly substring that the instruction originated from.
+		disassembler::disassemble_result disassembled{}; // Info about the machine code of the instruction.
 	};
 
 	struct basic_block final {
@@ -37,19 +37,19 @@ public:
 		std::unique_ptr<basic_block> next{};      // Next block in the order of declaration in the file. Not necessarily a successor of this block.
 	};
 
-	control_flow_graph(desync::assembler& assembler, desync::disassembler& disassembler, std::string_view assembly) {
+	control_flow_graph(assembler& assembler, disassembler& disassembler, std::string_view assembly) {
 		// Parse assembly statements.
-		const auto statements = desync::assembly_parser::parse(assembly);
+		const auto statements = assembly_parser::parse_statements(assembly);
 
 		// First pass: Consider only whole instructions and labels.
 		{
 			auto* block = &m_head;
 			for (const auto& statement : statements) {
-				if (statement.type == desync::assembly_parser::statement_type::instruction) {
+				if (statement.type == assembly_parser::statement_type::instruction) {
 					// Add an instruction.
 					auto& instruction = m_instructions.emplace_back();
 					instruction.string = statement.string;
-				} else if (statement.type == desync::assembly_parser::statement_type::label) {
+				} else if (statement.type == assembly_parser::statement_type::label) {
 					// Start a new basic block.
 					block->end = m_instructions.size();
 					block->next = std::make_unique<basic_block>();
@@ -74,26 +74,34 @@ public:
 				auto& instruction = m_instructions[instruction_index];
 
 				// Assemble and disassemble the instruction to get info about the instruction type.
+				// To make sure large constants don't cause problems when assembling, set all constants to 0.
+				auto modified_instruction_string = assembly_parser::zero_out_constant_operands(instruction.string);
 				try {
-					const auto assembler_result = assembler.assemble(instruction.string);
+					const auto assembler_result = assembler.assemble(modified_instruction_string);
+					if (assembler_result.statement_count == 0) {
+						throw error{"Assembler error @", instruction_index, ": No statements assembled: ", modified_instruction_string, " (original: ", instruction.string, ")"};
+					}
 					instruction.disassembled = disassembler.disassemble(assembler_result.encoding);
-				} catch (const desync::assembler::error& e) {
-					throw error{"Assembler error @", instruction_index, ": ", e.what(), ": ", instruction.string};
-				} catch (const desync::disassembler::error& e) {
-					throw error{"Disassembler error @", instruction_index, ": ", e.what(), ": ", instruction.string};
+					if (instruction.disassembled.instructions.size() == 0) {
+						throw error{
+							"Disassembler error @", instruction_index, ": No instructions disassembled: ", modified_instruction_string, " (original: ", instruction.string, ")"};
+					}
+				} catch (const assembler::error& e) {
+					throw error{"Assembler error @", instruction_index, ": ", e.what(), ": ", modified_instruction_string, " (original: ", instruction.string, ")"};
+				} catch (const disassembler::error& e) {
+					throw error{"Disassembler error @", instruction_index, ": ", e.what(), ": ", modified_instruction_string, " (original: ", instruction.string, ")"};
 				}
-				if (instruction.disassembled.instructions.size() == 0) {
-					throw error{"Empty disassembled instruction @", instruction_index, ": ", instruction.string};
-				}
+				assert(instruction.disassembled.instructions.size() != 0);
 				const auto& info = *instruction.disassembled.instructions.data();
 
 				// Check if it is a branch instruction.
-				if (desync::disassembler::is_branch(info)) {
+				if (disassembler::is_branch(info)) {
 					const auto new_block_begin = instruction_index + 1;
 					if (block->end == new_block_begin) {
-						if (desync::disassembler::is_unconditional_jump(info)) {
-							for (auto* const successor : block->successors) {
-								std::erase(successor->predecessors, block);
+						if (disassembler::is_unconditional_jump(info)) {
+							// Remove edge to next block.
+							if (block->next) {
+								block->next->predecessors.clear();
 							}
 							block->successors.clear();
 						}
@@ -116,7 +124,7 @@ public:
 						}
 						// Update the old block's successor pointers.
 						block->successors.clear();
-						if (!desync::disassembler::is_unconditional_jump(info)) {
+						if (!disassembler::is_unconditional_jump(info)) {
 							new_block->predecessors.push_back(block);
 							block->successors.push_back(new_block.get());
 						}
@@ -124,7 +132,7 @@ public:
 						block->next = std::move(new_block);
 					}
 					// Add the branch target as a successor.
-					if (desync::disassembler::has_immediate_operand(info)) {
+					if (disassembler::has_immediate_operand(info)) {
 						// Search for matching symbols.
 						for (auto* const symbol : m_symbols) {
 							if (instruction.string.find(symbol->label) != std::string_view::npos) {

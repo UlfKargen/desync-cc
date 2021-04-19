@@ -6,20 +6,10 @@
 #include <stdexcept>               // std::exception
 #include <string>                  // std::string
 #include <util/file.hpp>           // desync::util::read_file, desync::util::write_file
-
-namespace {
-
-auto print(const auto&... args) -> void {
-	(std::cerr << ... << args);
-}
-
-auto println(const auto&... args) -> void {
-	print(args..., '\n');
-}
-
-} // namespace
+#include <util/print.hpp>          // desync::util::println
 
 auto main(int argc, char* argv[]) -> int {
+	using desync::util::println;
 	try {
 		auto assembler = desync::assembler{};
 		auto disassembler = desync::disassembler{};
