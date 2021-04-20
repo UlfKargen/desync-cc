@@ -10,7 +10,7 @@ project(
 add_subdirectory("thirdparty/keystone")
 add_subdirectory("thirdparty/capstone")
 
-find_program(CLANG_TIDY NAMES clang-tidy-7 clang-tidy-6.0 clang-tidy-5.0 clang-tidy-4.0 clang-tidy REQUIRED)
+find_program(CLANG_TIDY NAMES clang-tidy REQUIRED)
 
 add_executable(
 	desync-pred
@@ -113,3 +113,6 @@ install(
 		"${CMAKE_CURRENT_SOURCE_DIR}/desync/desync-junk"
 	DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
+
+enable_testing()
+add_subdirectory("test")

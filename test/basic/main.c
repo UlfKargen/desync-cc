@@ -23,10 +23,18 @@ int vector3_square(int x, int y, int z) {
 	return x * x + y * y + z * z;
 }
 
+volatile int asdf = 0;
+
+void test123() {
+	++asdf;
+}
+
 int main(int argc, char* argv[]) {
 	if (argc != 4) {
 		return -1;
 	}
+
+	test123();
 
 	int vector[3] = {0, 0, 0};
 	int* component = vector;

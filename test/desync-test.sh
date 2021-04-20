@@ -7,7 +7,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 # Save base directory and project directory.
-BASE_DIR=$(pwd)
+TEST_DIR=$(dirname "$0")
 PROJECT_DIR=$1
 
 # Change to given project directory.
@@ -15,15 +15,15 @@ cd $PROJECT_DIR || exit
 echo "Running desync test: $(pwd)"
 
 # Get path to GCC wrapper.
-CC_WRAPPER=$BASE_DIR/test/desync-cc.sh
+CC_WRAPPER=$TEST_DIR/desync-cc.sh
 echo "Using gcc wrapper: $CC_WRAPPER"
 
 # Export path to GCC subcommand wrapper.
-export DESYNC_CC_SUB_WRAPPER=$BASE_DIR/test/desync-cc-subcommand.sh
+export DESYNC_CC_SUB_WRAPPER=$TEST_DIR/desync-cc-subcommand.sh
 echo "Using subcommand wrapper: $DESYNC_CC_SUB_WRAPPER"
 
 # Export path to desync executable.
-export DESYNC_TOOL=$BASE_DIR/build/bin/desync
+export DESYNC_TOOL=$TEST_DIR/../build/bin/desync
 echo "Using desync path: $DESYNC_CC_SUB_WRAPPER"
 
 # Clean the project.

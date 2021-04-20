@@ -38,7 +38,7 @@ public:
 			const auto& instruction = get_instruction(main_block->begin);
 			const auto file_index = get_file_index(instruction);
 			util::println("Main is at: ", file_index);
-			util::println("Assembly, starting at main: ", assembly.substr(file_index));
+			//util::println("Assembly, starting at main: ", assembly.substr(file_index));
 		}
 
 		// TODO: Insert predicates.
