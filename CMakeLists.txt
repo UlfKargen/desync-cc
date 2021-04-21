@@ -7,10 +7,10 @@ project(
 	LANGUAGES C CXX
 )
 
+set(DESYNC_USE_CLANG_TIDY OFF CACHE BOOL "Enable static analysis using clang-tidy.")
+
 add_subdirectory("thirdparty/keystone")
 add_subdirectory("thirdparty/capstone")
-
-find_program(CLANG_TIDY NAMES clang-tidy REQUIRED)
 
 add_executable(
 	desync-pred
@@ -71,10 +71,13 @@ target_link_libraries(
 		capstone-static
 )
 
-set_property(
-	TARGET desync-pred
-	PROPERTY CXX_CLANG_TIDY "${CLANG_TIDY}" "-header-filter=src/"
-)
+if(DESYNC_USE_CLANG_TIDY)
+	find_program(CLANG_TIDY NAMES clang-tidy REQUIRED)
+	set_property(
+		TARGET desync-pred
+		PROPERTY CXX_CLANG_TIDY "${CLANG_TIDY}" "-header-filter=src/"
+	)
+endif()
 
 include(GNUInstallDirs)
 

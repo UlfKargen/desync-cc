@@ -8,10 +8,10 @@ The project requires the following packages to build and install:
 
 -   CMake 3.12+
 -   GCC 10+
--   clang-tidy 11+
 
 Optional packages for development:
 
+-   clang-tidy 11+
 -   clang-format 11+
 
 ## Building (Debug)
@@ -32,6 +32,14 @@ Follow the steps for **Building (Debug)**, but instead of `cmake --build .`, use
 
 ```sh
 cmake --build . --config Release
+```
+
+## Building (with static analysis)
+
+Follow the steps for **Building (Debug)** or **Building (Release)**, but instead of `cmake ..`, use:
+
+```sh
+cmake -D DESYNC_USE_CLANG_TIDY:BOOL=ON ..
 ```
 
 ## Testing
