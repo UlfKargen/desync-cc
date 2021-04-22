@@ -26,6 +26,10 @@ echo "Using subcommand wrapper: $DESYNC_CC_SUB_WRAPPER"
 export DESYNC_TOOL=$TEST_DIR/../build/bin/desync
 echo "Using desync path: $DESYNC_CC_SUB_WRAPPER"
 
+# Export compiler command.
+export DESYNC_COMPILER_COMMAND=gcc
+echo "Using compiler: $DESYNC_COMPILER_COMMAND"
+
 # Clean the project.
 make clean
 
