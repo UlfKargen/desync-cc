@@ -17,9 +17,22 @@ public:
 			: std::runtime_error(util::concat(args...)) {}
 	};
 
-	[[nodiscard]] static auto process_assembly(assembler& assembler, disassembler& disassembler, std::string_view assembly) -> std::string {
+	[[nodiscard]] static auto process_assembly(std::string_view assembly) -> std::string {
 		auto result = std::string{assembly};
-		const auto cfg = control_flow_graph{assembler, disassembler, assembly};
+		auto cfg = control_flow_graph{assembly};
+		cfg.analyze_liveness();
+
+		// TODO: Remove these test prints.
+		util::println(
+			"===================================================================\n"
+			"ASSEMBLY\n"
+			"===================================================================\n",
+			assembly);
+		util::println(
+			"===================================================================\n"
+			"CONTROL FLOW GRAPH\n"
+			"===================================================================\n",
+			cfg);
 
 		// TODO: Remove this example code.
 		const auto get_instruction = [&cfg](std::size_t i) -> const control_flow_graph::instruction& {

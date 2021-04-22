@@ -1,6 +1,8 @@
 #ifndef DESYNC_CONTROL_FLOW_GRAPH_H
 #define DESYNC_CONTROL_FLOW_GRAPH_H
 
+#include <bitset>                   // std::bitset
+#include <cassert>                  // assert
 #include <memory>                   // std::unique_ptr, std::make_unique
 #include <ostream>                  // std::ostream
 #include <pred/assembler.hpp>       // desync::assembler
@@ -8,9 +10,10 @@
 #include <pred/disassembler.hpp>    // desync::disassembler
 #include <span>                     // std::span
 #include <stdexcept>                // std::runtime_error
+#include <string>                   // std::string
 #include <string_view>              // std::string_view
 #include <unordered_map>            // std::unordered_map
-#include <util/string.hpp>          // desync::util::concat
+#include <util/string.hpp>          // desync::util::concat, desync::util::left_align
 #include <utility>                  // std::move
 #include <vector>                   // std::vector
 
@@ -24,26 +27,34 @@ public:
 	};
 
 	struct instruction final {
-		std::string_view string{};                       // Assembly substring that the instruction originated from.
-		disassembler::disassemble_result disassembled{}; // Info about the machine code of the instruction.
+		std::string_view string{};                                  // Assembly substring that the instruction originated from.
+		disassembler::disassemble_result disassembled{};            // Info about the machine code of the instruction.
+		std::bitset<disassembler::register_count> live_registers{}; // Set of registers which are live at this instruction.
+		std::bitset<disassembler::flag_count> live_flags{};         // Set of flags which are live at this instruction.
 	};
 
 	struct basic_block final {
-		std::string_view label{};                 // Label of this block, or empty if the block was created from a branch.
-		std::size_t begin{};                      // First instruction index in the block.
-		std::size_t end{};                        // End of the instructions in this block.
-		std::vector<basic_block*> predecessors{}; // Blocks that are known to potentially jump to the beginning of this block.
-		std::vector<basic_block*> successors{};   // Blocks that are known to be potentially reachable from this block.
-		std::unique_ptr<basic_block> next{};      // Next block in the order of declaration in the file. Not necessarily a successor of this block.
+		std::string_view label{};                                   // Label of this block, or empty if the block was created from a branch.
+		std::size_t begin{};                                        // First instruction index in the block.
+		std::size_t end{};                                          // End of the instructions in this block.
+		std::vector<basic_block*> predecessors{};                   // Blocks that are known to potentially jump to the beginning of this block.
+		std::vector<basic_block*> successors{};                     // Blocks that are known to be potentially reachable from this block.
+		std::unique_ptr<basic_block> next{};                        // Next block in the order of declaration in the file. Not necessarily a successor of this block.
+		std::bitset<disassembler::register_count> live_registers{}; // Set of registers which are live at this block.
+		std::bitset<disassembler::flag_count> live_flags{};         // Set of flags which are live at this block.
+		bool liveness_analyzed = false;                             // Whether or not this block has been analyzed yet.
 	};
 
-	control_flow_graph(assembler& assembler, disassembler& disassembler, std::string_view assembly) {
+	explicit control_flow_graph(std::string_view assembly) {
 		// Parse assembly statements.
 		const auto statements = assembly_parser::parse_statements(assembly);
 
+		// Allocate first basic block.
+		m_head = std::make_unique<basic_block>();
+
 		// First pass: Consider only whole instructions and labels.
 		{
-			auto* block = &m_head;
+			auto* block = m_head.get();
 			for (const auto& statement : statements) {
 				if (statement.type == assembly_parser::statement_type::instruction) {
 					// Add an instruction.
@@ -68,7 +79,7 @@ public:
 		}
 
 		// Second pass: Consider branch instructions now that we know all symbols.
-		for (auto* block = &m_head; block; block = block->next.get()) {
+		for (auto* block = m_head.get(); block; block = block->next.get()) {
 			// Iterate all instructions in each block.
 			for (auto instruction_index = block->begin; instruction_index != block->end; ++instruction_index) {
 				auto& instruction = m_instructions[instruction_index];
@@ -77,11 +88,11 @@ public:
 				// To make sure large constants don't cause problems when assembling, set all constants to 0.
 				auto modified_instruction_string = assembly_parser::zero_out_constant_operands(instruction.string);
 				try {
-					const auto assembler_result = assembler.assemble(modified_instruction_string);
+					const auto assembler_result = m_assembler.assemble(modified_instruction_string);
 					if (assembler_result.statement_count == 0) {
 						throw error{"Assembler error @", instruction_index, ": No statements assembled: ", modified_instruction_string, " (original: ", instruction.string, ")"};
 					}
-					instruction.disassembled = disassembler.disassemble(assembler_result.encoding);
+					instruction.disassembled = m_disassembler.disassemble(assembler_result.encoding);
 					if (instruction.disassembled.instructions.size() == 0) {
 						throw error{
 							"Disassembler error @", instruction_index, ": No instructions disassembled: ", modified_instruction_string, " (original: ", instruction.string, ")"};
@@ -148,6 +159,20 @@ public:
 		}
 	}
 
+	auto analyze_liveness() -> void {
+		for (auto* block = m_head.get(); block; block = block->next.get()) {
+			analyze_liveness(*block);
+		}
+	}
+
+	[[nodiscard]] auto assembler() const noexcept -> const assembler& {
+		return m_assembler;
+	}
+
+	[[nodiscard]] auto disassembler() const noexcept -> const disassembler& {
+		return m_disassembler;
+	}
+
 	[[nodiscard]] auto instructions() const noexcept -> std::span<const instruction> {
 		return std::span{m_instructions};
 	}
@@ -164,14 +189,52 @@ public:
 	}
 
 	[[nodiscard]] auto head() const noexcept -> const basic_block& {
-		return m_head;
+		assert(m_head);
+		return *m_head;
 	}
 
 private:
+	auto analyze_liveness(basic_block& block) -> void { // NOLINT(misc-no-recursion)
+		if (block.liveness_analyzed) {
+			return;
+		}
+		block.liveness_analyzed = true;
+		if (block.successors.empty()) {
+			block.live_registers.set();
+			block.live_flags.set();
+		} else {
+			for (auto* const successor : block.successors) {
+				assert(successor);
+				analyze_liveness(*successor);
+				block.live_registers |= successor->live_registers;
+				block.live_flags |= successor->live_flags;
+			}
+		}
+		for (auto instruction_index = block.end; instruction_index-- != block.begin;) {
+			assert(instruction_index < m_instructions.size());
+			auto& instruction = m_instructions[instruction_index];
+			assert(instruction.disassembled.instructions.size() != 0);
+			const auto& info = *instruction.disassembled.instructions.data();
+			const auto access = m_disassembler.access(info);
+			block.live_registers &= ~access.registers_written;
+			block.live_registers |= access.registers_read;
+			block.live_flags &= ~access.flags_written;
+			block.live_flags |= access.flags_read;
+			instruction.live_registers = block.live_registers;
+			instruction.live_flags = block.live_flags;
+		}
+		for (auto* const predecessor : block.predecessors) {
+			assert(predecessor);
+			analyze_liveness(*predecessor);
+		}
+	}
+
+	desync::assembler m_assembler{};
+	desync::disassembler m_disassembler{};
 	std::vector<instruction> m_instructions{};
 	std::vector<basic_block*> m_symbols{};
 	std::unordered_map<std::string_view, basic_block*> m_symbol_table{};
-	basic_block m_head{};
+	std::unique_ptr<basic_block> m_head{};
 };
 
 inline auto operator<<(std::ostream& out, const control_flow_graph::basic_block& block) -> std::ostream& {
@@ -184,28 +247,22 @@ inline auto operator<<(std::ostream& out, const control_flow_graph::basic_block&
 }
 
 inline auto operator<<(std::ostream& out, const control_flow_graph::instruction& instruction) -> std::ostream& {
-	// Left-align instruction string with a maximum padding of instruction_width columns.
 	static constexpr auto instruction_width = std::size_t{32};
-	auto column = std::size_t{0};
-	for (const auto ch : instruction.string) {
-		if (ch == '\t') {
-			out << "    ";
-			column += 4;
-		} else {
-			out << ch;
-			++column;
-		}
-	}
-	for (; column < instruction_width; ++column) {
-		out << ' ';
-	}
-	// Append the disassembled instruction text as a comment.
-	out << " #";
+	static constexpr auto disassembled_width = std::size_t{36};
+	out << util::left_align(instruction.string, instruction_width) << " #";
+	auto disassembled_text = std::string{};
 	const auto* const begin = instruction.disassembled.instructions.data();
 	const auto* const end = begin + instruction.disassembled.instructions.size();
 	for (const auto* info = begin; info != end; ++info) {
-		out << ' ' << info->mnemonic << ' ' << info->op_str << ';';
+		disassembled_text.push_back(' ');
+		disassembled_text.append(info->mnemonic);
+		if (info->op_str[0] != '\0') {
+			disassembled_text.push_back(' ');
+			disassembled_text.append(info->op_str);
+		}
+		disassembled_text.push_back(';');
 	}
+	out << util::left_align(disassembled_text, disassembled_width);
 	return out;
 }
 
@@ -225,14 +282,16 @@ inline auto operator<<(std::ostream& out, const control_flow_graph& cfg) -> std:
 		out << "    }\n"
 			   "    instructions {\n";
 		for (auto instruction_index = block->begin; instruction_index != block->end; ++instruction_index) {
+			assert(instruction_index < cfg.instructions().size());
+			const auto& instruction = cfg.instructions()[instruction_index];
 			out << "        ";
 			// Right-align instruction index with a maximum padding of 3 columns.
 			const auto padding = (instruction_index < 1000) + (instruction_index < 100) + (instruction_index < 10);
 			for (auto i = 0; i < padding; ++i) {
 				out << ' ';
 			}
-			out << instruction_index << ": " << cfg.instructions()[instruction_index];
-			out << '\n';
+			out << instruction_index << ": " << instruction << " (free registers: {" << cfg.disassembler().registers_string(~instruction.live_registers) << "}; free flags: {"
+				<< cfg.disassembler().flags_string(~instruction.live_flags) << "})\n";
 		}
 		out << "    }\n"
 			   "}\n";

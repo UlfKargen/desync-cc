@@ -1,16 +1,42 @@
 #ifndef DESYNC_DISASSEMBLER_H
 #define DESYNC_DISASSEMBLER_H
 
+#include <array>               // std::array
+#include <bitset>              // std::bitset
 #include <capstone/capstone.h> // csh, cs_..., CS_..., X86_...
+#include <cassert>             // assert
+#include <cstddef>             // std::size_t
 #include <cstdint>             // std::uint8_t, std::uint64_t
 #include <span>                // std::span
 #include <stdexcept>           // std::runtime_error
+#include <string>              // std::string, std::to_string
 #include <string_view>         // std::basic_string_view
 
 namespace desync {
 
 class disassembler final {
 public:
+	static constexpr auto register_count = std::size_t{X86_REG_ENDING - 1};
+	static constexpr auto flag_count = std::size_t{32 + 4};
+
+	enum class flag : std::size_t {
+		CF = 0,
+		PF = 2,
+		AF = 4,
+		ZF = 6,
+		SF = 7,
+		TF = 8,
+		IF = 9,
+		DF = 10,
+		OF = 11,
+		NT = 14,
+		RF = 16,
+		C0 = 32,
+		C1 = 33,
+		C2 = 34,
+		C3 = 35,
+	};
+
 	struct error final : std::runtime_error {
 		[[nodiscard]] explicit error(const char* message)
 			: std::runtime_error(message) {}
@@ -84,6 +110,7 @@ public:
 	}
 
 	[[nodiscard]] static auto has_immediate_operand(const cs_insn& info) -> bool {
+		assert(info.detail);
 		for (auto op_index = std::uint8_t{0}; op_index < info.detail->x86.op_count; ++op_index) {
 			const auto& op = info.detail->x86.operands[op_index];
 			if (op.type == X86_OP_IMM) {
@@ -91,6 +118,131 @@ public:
 			}
 		}
 		return false;
+	}
+
+	[[nodiscard]] auto registers_string(const std::bitset<register_count>& registers) const -> std::string {
+		auto result = std::string{};
+		for (auto i = std::size_t{0}; i < registers.size(); ++i) {
+			if (registers[i]) {
+				const auto reg_id = static_cast<unsigned>(i + 1);
+				if (const auto* const name = cs_reg_name(m_cs, reg_id)) {
+					result.append(name);
+					result.append(", ");
+				} else {
+					result.append("???, ");
+				}
+			}
+		}
+		if (!result.empty()) {
+			// Remove the ", " at the end.
+			result.pop_back();
+			result.pop_back();
+		}
+		return result;
+	}
+
+	[[nodiscard]] auto flags_string(const std::bitset<flag_count>& flags) const -> std::string { // NOLINT(readability-convert-member-functions-to-static)
+		auto result = std::string{};
+		for (auto i = std::size_t{0}; i < flags.size(); ++i) {
+			if (flags[i]) {
+				// clang-format off
+				switch (i) {
+					case static_cast<std::size_t>(flag::CF): result.append("CF, "); break;
+					case static_cast<std::size_t>(flag::PF): result.append("PF, "); break;
+					case static_cast<std::size_t>(flag::AF): result.append("AF, "); break;
+					case static_cast<std::size_t>(flag::ZF): result.append("ZF, "); break;
+					case static_cast<std::size_t>(flag::SF): result.append("SF, "); break;
+					case static_cast<std::size_t>(flag::TF): result.append("TF, "); break;
+					case static_cast<std::size_t>(flag::IF): result.append("IF, "); break;
+					case static_cast<std::size_t>(flag::DF): result.append("DF, "); break;
+					case static_cast<std::size_t>(flag::OF): result.append("OF, "); break;
+					case static_cast<std::size_t>(flag::NT): result.append("NT, "); break;
+					case static_cast<std::size_t>(flag::RF): result.append("RF, "); break;
+					case static_cast<std::size_t>(flag::C0): result.append("C0, "); break;
+					case static_cast<std::size_t>(flag::C1): result.append("C1, "); break;
+					case static_cast<std::size_t>(flag::C2): result.append("C2, "); break;
+					case static_cast<std::size_t>(flag::C3): result.append("C3, "); break;
+					default:
+						result.append(std::to_string(i));
+						result.append(", ");
+						break;
+				}
+				// clang-format on
+			}
+		}
+		if (!result.empty()) {
+			// Remove the ", " at the end.
+			result.pop_back();
+			result.pop_back();
+		}
+		return result;
+	}
+
+	struct access_result final {
+		std::bitset<register_count> registers_read{};
+		std::bitset<register_count> registers_written{};
+		std::bitset<flag_count> flags_read{};
+		std::bitset<flag_count> flags_written{};
+	};
+
+	[[nodiscard]] auto access(const cs_insn& info) const -> access_result {
+		auto result = access_result{};
+		assert(info.detail);
+
+		auto regs_read = std::array<std::uint16_t, sizeof(cs_regs) / sizeof(std::uint16_t)>{};
+		auto regs_write = std::array<std::uint16_t, sizeof(cs_regs) / sizeof(std::uint16_t)>{};
+		auto read_count = std::uint8_t{};
+		auto write_count = std::uint8_t{};
+		if (const auto err = cs_regs_access(m_cs, &info, regs_read.data(), &read_count, regs_write.data(), &write_count); err != CS_ERR_OK) {
+			throw error{cs_strerror(err)};
+		}
+
+		for (auto i = std::size_t{0}; i < read_count; ++i) {
+			assert(regs_read[i] >= 1);
+			assert(static_cast<std::size_t>(regs_read[i] - 1) < result.registers_read.size());
+			result.registers_read[static_cast<std::size_t>(regs_read[i] - 1)] = true;
+		}
+
+		for (auto i = std::size_t{0}; i < write_count; ++i) {
+			assert(regs_write[i] >= 1);
+			assert(static_cast<std::size_t>(regs_write[i] - 1) < result.registers_written.size());
+			result.registers_written[static_cast<std::size_t>(regs_write[i] - 1)] = true;
+		}
+
+		result.flags_read[static_cast<std::size_t>(flag::CF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_CF);
+		result.flags_read[static_cast<std::size_t>(flag::PF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_PF);
+		result.flags_read[static_cast<std::size_t>(flag::AF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_AF);
+		result.flags_read[static_cast<std::size_t>(flag::ZF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_ZF);
+		result.flags_read[static_cast<std::size_t>(flag::SF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_SF);
+		result.flags_read[static_cast<std::size_t>(flag::TF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_TF);
+		result.flags_read[static_cast<std::size_t>(flag::IF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_IF);
+		result.flags_read[static_cast<std::size_t>(flag::DF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_DF);
+		result.flags_read[static_cast<std::size_t>(flag::OF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_OF);
+		result.flags_read[static_cast<std::size_t>(flag::NT)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_NT);
+		result.flags_read[static_cast<std::size_t>(flag::RF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_RF);
+
+		result.flags_read[static_cast<std::size_t>(flag::C0)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_TEST_C0);
+		result.flags_read[static_cast<std::size_t>(flag::C1)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_TEST_C1);
+		result.flags_read[static_cast<std::size_t>(flag::C2)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_TEST_C2);
+		result.flags_read[static_cast<std::size_t>(flag::C3)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_TEST_C3);
+
+		result.flags_written[static_cast<std::size_t>(flag::CF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_CF);
+		result.flags_written[static_cast<std::size_t>(flag::PF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_PF);
+		result.flags_written[static_cast<std::size_t>(flag::AF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_AF);
+		result.flags_written[static_cast<std::size_t>(flag::ZF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_ZF);
+		result.flags_written[static_cast<std::size_t>(flag::SF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_SF);
+		result.flags_written[static_cast<std::size_t>(flag::TF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_TF);
+		result.flags_written[static_cast<std::size_t>(flag::IF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_IF);
+		result.flags_written[static_cast<std::size_t>(flag::DF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_DF);
+		result.flags_written[static_cast<std::size_t>(flag::OF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_OF);
+		result.flags_written[static_cast<std::size_t>(flag::NT)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_NT);
+		result.flags_written[static_cast<std::size_t>(flag::RF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_RF);
+
+		result.flags_written[static_cast<std::size_t>(flag::C0)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C0);
+		result.flags_written[static_cast<std::size_t>(flag::C1)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C1);
+		result.flags_written[static_cast<std::size_t>(flag::C2)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C2);
+		result.flags_written[static_cast<std::size_t>(flag::C3)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C3);
+		return result;
 	}
 
 	disassembler() {

@@ -1,8 +1,6 @@
 #include <cstdlib>                 // EXIT_SUCCESS, EXIT_FAILURE
 #include <iostream>                // std::cerr
-#include <pred/assembler.hpp>      // desync::assembler
 #include <pred/desynchronizer.hpp> // desync::desynchronizer
-#include <pred/disassembler.hpp>   // desync::disassembler
 #include <stdexcept>               // std::exception
 #include <string>                  // std::string
 #include <util/file.hpp>           // desync::util::read_file, desync::util::write_file
@@ -10,15 +8,13 @@
 
 auto main(int argc, char* argv[]) -> int {
 	using desync::util::println;
+
+	if (argc <= 1) {
+		println("Usage: desync-pred <file(s)...>");
+		return EXIT_FAILURE;
+	}
+
 	try {
-		auto assembler = desync::assembler{};
-		auto disassembler = desync::disassembler{};
-
-		if (argc <= 1) {
-			println("Usage: desync-pred <file(s)...>");
-			return EXIT_FAILURE;
-		}
-
 		// TODO: Parse options from environment variable/config file
 		// (use std::getenv("DESYNC_OPTIONS")/std::getenv("DESYNC_OPTIONS_FILE") from <cstdlib>).
 
@@ -33,19 +29,7 @@ auto main(int argc, char* argv[]) -> int {
 			}
 			auto new_assembly = std::string{};
 			try {
-				// TODO: Remove these temporary test prints.
-				println(
-					"===================================================================\n"
-					"ASSEMBLY\n"
-					"===================================================================\n",
-					*assembly);
-				println(
-					"===================================================================\n"
-					"CONTROL FLOW GRAPH\n"
-					"===================================================================\n",
-					desync::control_flow_graph{assembler, disassembler, *assembly});
-
-				new_assembly = desync::desynchronizer::process_assembly(assembler, disassembler, *assembly);
+				new_assembly = desync::desynchronizer::process_assembly(*assembly);
 			} catch (const std::exception& e) {
 				println("desync: ", filename, ": ", e.what());
 				error = true;
