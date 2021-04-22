@@ -7,7 +7,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 # Save base directory and project directory.
-TEST_DIR=$(dirname "$0")
+TEST_DIR=$(realpath $(dirname "$0"))
 PROJECT_DIR=$1
 
 # Change to given project directory.
