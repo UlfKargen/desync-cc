@@ -121,6 +121,7 @@ public:
 	}
 
 	[[nodiscard]] auto registers_string(const std::bitset<register_count>& registers) const -> std::string {
+		assert(m_cs);
 		auto result = std::string{};
 		for (auto i = std::size_t{0}; i < registers.size(); ++i) {
 			if (registers[i]) {
@@ -187,6 +188,7 @@ public:
 
 	[[nodiscard]] auto access(const cs_insn& info) const -> access_result {
 		auto result = access_result{};
+		assert(m_cs);
 		assert(info.detail);
 
 		auto regs_read = std::array<std::uint16_t, sizeof(cs_regs) / sizeof(std::uint16_t)>{};
@@ -258,17 +260,28 @@ public:
 		cs_close(&m_cs);
 	}
 
-	// Disallow copying and moving.
+	disassembler(disassembler&& other) noexcept
+		: m_cs(other.m_cs) {
+		other.m_cs = csh{};
+	}
+
+	auto operator=(disassembler&& other) noexcept -> disassembler& {
+		cs_close(&m_cs);
+		m_cs = other.m_cs;
+		other.m_cs = csh{};
+		return *this;
+	}
+
+	// Disallow copying.
 	disassembler(const disassembler&) = delete;
-	disassembler(disassembler&&) = delete;
 	auto operator=(const disassembler&) -> disassembler& = delete;
-	auto operator=(disassembler &&) -> disassembler& = delete;
 
 	struct disassemble_result final {
 		instruction_list instructions{};
 	};
 
 	[[nodiscard]] auto disassemble(std::basic_string_view<unsigned char> code, std::uint64_t address = 0, std::size_t count = 0) const -> disassemble_result {
+		assert(m_cs);
 		cs_insn* insn = nullptr;
 		const auto size = cs_disasm(m_cs, code.data(), code.size(), address, count, &insn);
 		if (size < count) {

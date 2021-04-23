@@ -45,6 +45,12 @@ public:
 		bool liveness_analyzed = false;                             // Whether or not this block has been analyzed yet.
 	};
 
+	[[nodiscard]] static auto liveness_analyzed(std::string_view assembly) -> control_flow_graph {
+		auto cfg = control_flow_graph{assembly};
+		cfg.analyze_liveness();
+		return cfg;
+	}
+
 	explicit control_flow_graph(std::string_view assembly) {
 		// Parse assembly statements.
 		const auto statements = assembly_parser::parse_statements(assembly);

@@ -78,6 +78,7 @@ private:
 			} else if (peek() == ';') {
 				advance();
 			} else if (peek() == '#') {
+				advance();
 				skip_line();
 			} else if (peek(2) == "/*") {
 				skip_comment();
@@ -171,6 +172,7 @@ private:
 	}
 
 	[[nodiscard]] auto peek() const -> char {
+		assert(m_it - m_code.begin() < m_end - m_code.begin());
 		return *m_it;
 	}
 
@@ -179,10 +181,12 @@ private:
 	}
 
 	auto advance() -> void {
+		assert(m_it - m_code.begin() < m_end - m_code.begin());
 		++m_it;
 	}
 
 	auto advance(std::ptrdiff_t n) -> void {
+		assert(m_it + n - m_code.begin() < m_end - m_code.begin());
 		m_it += n;
 	}
 

@@ -16,10 +16,14 @@ add_executable(
 	desync-pred
 	"src/pred/assembler.hpp"
 	"src/pred/assembly_parser.hpp"
+	"src/pred/configuration_parser.hpp"
+	"src/pred/configuration.hpp"
 	"src/pred/control_flow_graph.hpp"
 	"src/pred/desynchronizer.hpp"
 	"src/pred/disassembler.hpp"
 	"src/pred/main.cpp"
+	"src/pred/options.hpp"
+	"src/pred/predicate_parser.hpp"
 	"src/util/file.hpp"
 	"src/util/print.hpp"
 	"src/util/string.hpp"
@@ -117,5 +121,7 @@ install(
 	DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
-enable_testing()
-add_subdirectory("test")
+include(CTest)
+if(BUILD_TESTING)
+	add_subdirectory("test")
+endif()

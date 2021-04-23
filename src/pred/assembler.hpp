@@ -1,6 +1,7 @@
 #ifndef DESYNC_ASSEMBLER_H
 #define DESYNC_ASSEMBLER_H
 
+#include <cassert>             // assert
 #include <cstddef>             // std::size_t
 #include <cstdint>             // std::uint64_t
 #include <keystone/keystone.h> // ks_..., KS_...
@@ -85,11 +86,21 @@ public:
 		ks_close(m_ks);
 	}
 
-	// Disallow copying and moving.
+	assembler(assembler&& other) noexcept
+		: m_ks(other.m_ks) {
+		other.m_ks = nullptr;
+	}
+
+	auto operator=(assembler&& other) noexcept -> assembler& {
+		ks_close(m_ks);
+		m_ks = other.m_ks;
+		other.m_ks = nullptr;
+		return *this;
+	}
+
+	// Disallow copying.
 	assembler(const assembler&) = delete;
-	assembler(assembler&&) = delete;
 	auto operator=(const assembler&) -> assembler& = delete;
-	auto operator=(assembler &&) -> assembler& = delete;
 
 	struct assemble_result final {
 		encoding_string encoding{};
@@ -97,6 +108,7 @@ public:
 	};
 
 	[[nodiscard]] auto assemble(std::string_view string, std::uint64_t address = 0) -> assemble_result {
+		assert(m_ks);
 		unsigned char* encoding = nullptr;
 		auto encoding_size = std::size_t{};
 		auto stat_count = std::size_t{};

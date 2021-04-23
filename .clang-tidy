@@ -10,5 +10,8 @@ Checks: "clang-analyzer-*,
          -cppcoreguidelines-pro-bounds-constant-array-index,
          -cppcoreguidelines-pro-type-reinterpret-cast,
          -cppcoreguidelines-pro-type-union-access,
-         -readability-implicit-bool-conversion"
+         -cppcoreguidelines-avoid-c-arrays,
+         -modernize-avoid-c-arrays,
+         -readability-implicit-bool-conversion,
+         -misc-non-private-member-variables-in-classes"
 WarningsAsErrors: "*"
