@@ -1,8 +1,69 @@
 import struct
 import sys
+import random
 from capstone import *
 from elftools.elf.elffile import ELFFile
 
+
+#define ONEBYTE_SYM       x86DisassemblerOneByteOpcodes
+#define TWOBYTE_SYM       x86DisassemblerTwoByteOpcodes
+
+
+def get_disasm_length(code):
+	md = Cs(CS_ARCH_X86, CS_MODE_64)
+	last_instr = 0
+	for i in md.disasm(code, 0x0000):
+		print("0x%x:\t%s\t%s" %(i.address, i.mnemonic, i.op_str))
+		#print("...and size: {}".format(i.size))			
+		last_instr = i
+	if last_instr != 0:
+		disasm_length = last_instr.address + last_instr.size
+		#print("Amount of correctly disassemled bytes: {} :)".format(disasm_bytes))
+		return disasm_length
+
+	print("Error: No bytes correctly disassembled :(")
+	return 0
+	
+	
+	
+def insert_junk_bytes(code, junk_bytes):
+	"""
+	Currently confined to junk_bytes of length one or two.
+	"""
+	desync_code = bytearray(code)
+	
+	if len(junk_bytes) == 1:
+		desync_code[0] = junk_bytes
+	#else:
+	#	desync_code[0] = junk_bytes
+	
+	return bytes(desync_code)
+	
+	
+	
+def find_junk_bytes(pos_single_bytes, pos_double_bytes):
+	"""
+	Currently confined to junk_bytes of length one or two.
+	"""
+	junk_bytes = -1
+	if not pos_single_bytes:
+		i = random.randrange(len(pos_single_bytes)-1)
+		junk_bytes = pos_single_bytes.pop(i)
+	#elif not pos_double_bytes:
+	#	i = random.randrange(len(pos_double_bytes))
+	#	junk_bytes = pos_double_bytes.pop(i)
+		return (bytes([junk_bytes]), pos_single_bytes)
+	return (junk_bytes, pos_single_bytes)
+	
+	
+	
+def get_pos_bytes_lists():
+	#from capstone get list of single byters
+	#C = list(set(A)) # - set(B))
+	pos_bytes = list(range(0, 256))
+	return pos_bytes
+
+	
 
 def main():
 	
@@ -38,49 +99,51 @@ def main():
 			print("Offset for symbol [{}]: 0x{:x}".format(symbol, sym_offset))		
 		
 		for symbol in desync_list:
+			
+			"""
+			For every symbol (desyncpoint) in desync_list, this loop shall:
+				
+			* Extract a code snippet 
+			* Disassembly it and save the length of correctly disassembled bytes
+			* Find suitable junk byte(s)
+					- Find a random non-single-instruction byte that havent been tried
+					  (If len(single_byte_instr) + tried_bytes = 256 => two bytes)
+					- Insert the junk bytes into the code snippet
+					- Disassemble the code snippet and compare length to original
+			* Insert junk byte into file
+			"""
+			
+			"""
+			Extract a code snippet of length 100.
+			"""
 			f.seek(sym_offsets[symbol])
-			temp = f.read(20)
-			#junk_byte = b'\xAA'
-			#temp[2] = 170
-			#temp = temp[:2]+ junk_byte + temp[2+1:]			
-			print('En slice: \n{}'.format(temp))
+			code = f.read(20)									
 						
 			"""
-			Disassemble the slice and print the resulting instructions
+			Disassemble the original to and get the length of the disassembled
+			bytes.
 			"""
-			CODE = b"\xe85\x01\x00\x001\xc0H\x83\xc4\x08\xc3H\x8d=\xda\x01"
+			#CODE = b"\xff\xff\xff\xe85\x01\x00\x001\xc0H\x83\xc4\x08\xc3H\x8d=\xda\x01"			
+			org_length = get_disasm_length(code)			
 			
-			md = Cs(CS_ARCH_X86, CS_MODE_64)
-			for i in md.disasm(CODE, 0x1000):
-				print("0x%x:\t%s\t%s" %(i.address, i.mnemonic, i.op_str))				
+			"""
+			Find suitable junk bytes and insert into file.
+			"""			
+			desync_length = 0
+			pos_bytes = get_pos_bytes_lists()
+			while (desync_length != org_length):
+				(junk_bytes, pos_bytes) = find_junk_bytes(pos_bytes, [])
+				if junk_bytes == -1:
+					print("Error! No possible junk bytes")
+					break
+				else:
+					desync_code = insert_junk_bytes(code, junk_bytes)
+					desync_length = get_disasm_length(desync_code)
+					print("Org_length: {}, Desync_length: {}".format(org_length, desync_length))
+				
 			
 		f.close()
 		
-		
-	"""
-	FILE = 'test_desync'
-
-	elf = ELFFile(open(FILE, 'rb'))
-
-	symtab = elf.get_section_by_name('.symtab')
-	if not symtab:
-		print('No symbol table available')
-		sys.exit(1)
-
-	name = 'desyncpoint0'
-	sym_count = 0
-	NAMELEN = 12
-	sym_list = symtab.get_symbol_by_name(name)
-	while sym_list:
-		print('Symbol {}: {} \n'.format(sym_count, symtab.get_section_index(sym_list[0])))
-		
-		#Gör lite saker...
-				
-		sym_count += 1
-		name = name[:NAMELEN-1] + str(sym_count)
-		sym_list = symtab.get_symbol_by_name(name)
-	
-"""
 
 
 if __name__ == '__main__':
