@@ -13,8 +13,9 @@ namespace util {
 [[nodiscard]] inline auto read_file(const char* filename) -> std::optional<std::string> {
 	if (auto file = std::ifstream{filename}) {
 		auto stream = std::ostringstream{};
-		stream << file.rdbuf();
-		return stream.str();
+		if (stream << file.rdbuf()) {
+			return stream.str();
+		}
 	}
 	return std::nullopt;
 }
@@ -22,7 +23,7 @@ namespace util {
 [[nodiscard]] inline auto write_file(const char* filename, std::string_view file_contents) -> bool {
 	if (auto file = std::ofstream{filename, std::ofstream::out | std::ofstream::trunc}) {
 		file << file_contents;
-		return true;
+		return static_cast<bool>(file);
 	}
 	return false;
 }
