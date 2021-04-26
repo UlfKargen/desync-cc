@@ -12,8 +12,7 @@ namespace util {
 
 [[nodiscard]] inline auto read_file(const char* filename) -> std::optional<std::string> {
 	if (auto file = std::ifstream{filename}) {
-		auto stream = std::ostringstream{};
-		if (stream << file.rdbuf()) {
+		if (auto stream = std::ostringstream{}; stream << file.rdbuf()) {
 			return stream.str();
 		}
 	}
