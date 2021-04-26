@@ -22,8 +22,9 @@ namespace util {
 
 [[nodiscard]] inline auto write_file(const char* filename, std::string_view file_contents) -> bool {
 	if (auto file = std::ofstream{filename, std::ofstream::out | std::ofstream::trunc}) {
-		file << file_contents;
-		return static_cast<bool>(file);
+		if (file << file_contents) {
+			return true;
+		}
 	}
 	return false;
 }
