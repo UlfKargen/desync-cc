@@ -1,0 +1,70 @@
+guser908@tlvm-4-4-3:~/tddd17/project/desync$ python3 pyelf_test.py test_desync desyncpoint
+Appended: desyncpoint1
+Appended: desyncpoint0
+Offset for symbol [desyncpoint1]: 0x58e
+Offset for symbol [desyncpoint0]: 0x573
+0x0:	nop	
+0x1:	nop	
+0x2:	call	0x122
+0x7:	jmp	0xffffffffffffffec
+0x9:	nop	word ptr [rax + rax]
+0x12:	xor	ebp, ebp
+0x14:	mov	r9, rdx
+0x17:	pop	rsi
+0x18:	mov	rdx, rsp
+0x1b:	and	rsp, 0xfffffffffffffff0
+0x1f:	push	rax
+0x20:	push	rsp
+0x21:	lea	r8, [rip + 0x18a]
+0x28:	lea	rcx, [rip + 0x113]
+Amount of correctly disassemled bytes: 47 :)
+Trying junk byte: b'\x9d'
+0x0:	nop	
+0x1:	popfq	
+0x2:	call	0x122
+0x7:	jmp	0xffffffffffffffec
+0x9:	nop	word ptr [rax + rax]
+0x12:	xor	ebp, ebp
+0x14:	mov	r9, rdx
+0x17:	pop	rsi
+0x18:	mov	rdx, rsp
+0x1b:	and	rsp, 0xfffffffffffffff0
+0x1f:	push	rax
+0x20:	push	rsp
+0x21:	lea	r8, [rip + 0x18a]
+0x28:	lea	rcx, [rip + 0x113]
+Amount of correctly disassemled bytes: 47 :)
+Org_length: 47, Desync_length: 47
+Trying junk byte: b'X'
+0x0:	nop	
+0x1:	pop	rax
+0x2:	call	0x122
+0x7:	jmp	0xffffffffffffffec
+0x9:	nop	word ptr [rax + rax]
+0x12:	xor	ebp, ebp
+0x14:	mov	r9, rdx
+0x17:	pop	rsi
+0x18:	mov	rdx, rsp
+0x1b:	and	rsp, 0xfffffffffffffff0
+0x1f:	push	rax
+0x20:	push	rsp
+0x21:	lea	r8, [rip + 0x18a]
+0x28:	lea	rcx, [rip + 0x113]
+Amount of correctly disassemled bytes: 47 :)
+Org_length: 47, Desync_length: 47
+Trying junk byte: b'\xa3'
+0x0:	nop	
+0x1:	movabs	dword ptr [0x66e3eb0000011be8], eax
+0xa:	nop	dword ptr [rax + rax]
+0x12:	xor	ebp, ebp
+0x14:	mov	r9, rdx
+0x17:	pop	rsi
+0x18:	mov	rdx, rsp
+0x1b:	and	rsp, 0xfffffffffffffff0
+0x1f:	push	rax
+0x20:	push	rsp
+0x21:	lea	r8, [rip + 0x18a]
+0x28:	lea	rcx, [rip + 0x113]
+Amount of correctly disassemled bytes: 47 :)
+Org_length: 47, Desync_length: 47
+guser908@tlvm-4-4-3:~/tddd17/project/desync$ 
