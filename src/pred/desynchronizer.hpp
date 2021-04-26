@@ -175,7 +175,7 @@ private:
 		} else {
 			seed = static_cast<decltype(seed)>(std::random_device{}());
 		}
-		m_rng.seed(seed);
+		m_random_number_generator.seed(seed);
 		return seed;
 	}
 
@@ -316,7 +316,7 @@ private:
 		// clang-format on
 	}
 
-	std::mt19937 m_rng{};
+	std::mt19937 m_random_number_generator{};
 	std::regex m_instruction_pattern{};
 	configuration::junk_length_distribution_type m_junk_length_distribution{};
 	configuration::interval_distribution_type m_interval_distribution{};
