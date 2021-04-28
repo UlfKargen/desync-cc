@@ -1,6 +1,7 @@
 import struct
 import sys
 import random
+from itertools import combinations
 from capstone import *
 from elftools.elf.elffile import ELFFile
 
@@ -57,8 +58,9 @@ def insert_junk_bytes(code, junk_bytes):
 	
 	if len(junk_bytes) == 1:
 		desync_code[1] = junk_bytes[0]
-	#else:
-	#	desync_code[0] = junk_bytes
+	elif len(junk_bytes) == 2:
+		desync_code[0] = junk_bytes[0]
+		desync_code[1] = junk_bytes[1]
 	
 	return bytes(desync_code)
 	
@@ -72,21 +74,20 @@ def find_junk_bytes(pos_single_bytes, pos_double_bytes):
 	if pos_single_bytes:		
 		i = random.randrange(len(pos_single_bytes)-1)
 		junk_bytes.append(pos_single_bytes.pop(i))
-	#elif not pos_double_bytes:
-	#	i = random.randrange(len(pos_double_bytes))
-	#	junk_bytes = pos_double_bytes.pop(i)
-		#return (junk_bytes, pos_single_bytes)
-	print("Trying junk byte: {}".format(bytes([junk_bytes[0]])))
-	return (junk_bytes, pos_single_bytes)
+	elif pos_double_bytes:
+		i = random.randrange(len(pos_double_bytes)-1) 
+		junk_bytes = pos_double_bytes.pop(i)		
+	print("Trying junk bytes: {}".format(bytes([junk_bytes[0]])))
+	return (junk_bytes, pos_single_bytes, pos_double_bytes)
 	
 	
 	
 def get_pos_bytes_lists():
 	#from capstone get list of single byters
-	#C = list(set(A)) # - set(B))
-	pos_bytes = list(range(0, 256))
-	return pos_bytes
-
+	#C = list(set(A)) # - set(B))	
+	pos_single_bytes = list(range(0, 256))
+	pos_double_bytes = list(combinations(pos_single_bytes, 2))
+	return (pos_single_bytes, pos_double_bytes)
 	
 	
 def get_desync_list(symtab):
@@ -186,11 +187,11 @@ def main():
 			Find suitable junk bytes and insert into file.
 			"""			
 			desync_length = 0
-			pos_bytes = get_pos_bytes_lists()
-			desynchronized = False
+			(pos_single_bytes, pos_double_bytes) = get_pos_bytes_lists()			
 			junk_bytes = []
+			desynchronized = False			
 			while (not desynchronized):
-				(junk_bytes, pos_bytes) = find_junk_bytes(pos_bytes, [])
+				(junk_bytes, pos_single_bytes, pos_double_bytes) = find_junk_bytes(pos_single_bytes, pos_double_bytes)				
 				if junk_bytes:
 					desync_code = insert_junk_bytes(code, junk_bytes)
 					desync_instr_list = get_disasm_instr_list(desync_code)
@@ -203,14 +204,13 @@ def main():
 					break
 			"""
 			Write the changes to the file.			
-			"""			
-			#with open(binary, 'w+b') as f:
+			"""						
 			i = 1		
 			for junk_byte in reversed(junk_bytes):
 				f.seek(sym_offsets[symbol]+NUM_JUNK_BYTES-i)
 				f.write(bytes([junk_byte]))		
 				i += 1		
-			#f.close()			
+				
 	f.close()
 									
 		
