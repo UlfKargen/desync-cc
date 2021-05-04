@@ -31,6 +31,7 @@ void test123() {
 
 int main(int argc, char* argv[]) {
 	if (argc != 4) {
+		printf("Usage: basic <x> <y> <z>\n");
 		return -1;
 	}
 

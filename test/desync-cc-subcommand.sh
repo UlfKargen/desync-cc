@@ -12,13 +12,13 @@ COMMAND_NAME=$(basename "$1")
 # Check which kind of command should be run.
 if [[ "$COMMAND_NAME" = "cc1" ]]; then
     # Run the compiler as normal.
-    echo "Running compiler: $@"
+    #echo "Running compiler: $@"
 
     # Run the compiler.
     "$@" || exit
 elif [[ "$COMMAND_NAME" = "as" ]]; then
     # Run our tool with the assembly filenames given to the assembler command before running the assembler.
-    echo "Running assembler: $@"
+    #echo "Running assembler: $@"
 
     # Extract the assembly filenames from the assembler arguments.
     ASSEMBLY_FILES=""
@@ -39,7 +39,7 @@ elif [[ "$COMMAND_NAME" = "as" ]]; then
     "$@" || exit
 elif [[ "$COMMAND_NAME" = "collect2" || "$COMMAND_NAME" = "ld" ]]; then
     # Run our tool with the output filename given to the linker command after running the linker.
-    echo "Running linker: $@"
+    #echo "Running linker: $@"
 
     # Extract the output filename from the linker arguments.
     OUTPUT_FILE="a.out"
@@ -62,7 +62,7 @@ elif [[ "$COMMAND_NAME" = "collect2" || "$COMMAND_NAME" = "ld" ]]; then
     "$DESYNC_TOOL" -j "$OUTPUT_FILE" # Don't exit on failure.
 else
     # Run any other commands as normal.
-    echo "Running other: $@"
+    #echo "Running other: $@"
 
     # Run the command.
     "$@" || exit

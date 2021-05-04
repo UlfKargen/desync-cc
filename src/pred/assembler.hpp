@@ -107,7 +107,7 @@ public:
 		std::size_t statement_count = 0;
 	};
 
-	[[nodiscard]] auto assemble(std::string_view string, std::uint64_t address = 0) -> assemble_result {
+	[[nodiscard]] auto assemble(std::string_view string, std::uint64_t address = 0) const -> assemble_result {
 		assert(m_ks);
 		unsigned char* encoding = nullptr;
 		auto encoding_size = std::size_t{};

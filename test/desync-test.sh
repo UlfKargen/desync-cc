@@ -6,6 +6,9 @@ if [[ $# -ne 1 ]]; then
     exit 2
 fi
 
+# Export current directory as base directory.
+export DESYNC_CONFIG_BASE_DIR="$(pwd)"
+
 # Save base directory and project directory.
 TEST_DIR=$(realpath $(dirname "$0"))
 PROJECT_DIR=$1

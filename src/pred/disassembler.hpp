@@ -120,6 +120,70 @@ public:
 		return false;
 	}
 
+	[[nodiscard]] static auto registers_8bit() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_AH - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_AL - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_BH - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_BL - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_CH - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_CL - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_DH - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_DL - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_16bit() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_AX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_BX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_CX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_DX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_SI - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_DI - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_BP - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_SP - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_32bit() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_EAX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_EBX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_ECX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_EDX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_ESI - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_EDI - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_EBP - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_ESP - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_64bit() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_RAX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_RBX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_RCX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_RDX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_RSI - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_RDI - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_RBP - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_RSP - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
 	[[nodiscard]] auto registers_string(const std::bitset<register_count>& registers) const -> std::string {
 		assert(m_cs);
 		auto result = std::string{};
@@ -245,6 +309,11 @@ public:
 		result.flags_written[static_cast<std::size_t>(flag::C2)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C2);
 		result.flags_written[static_cast<std::size_t>(flag::C3)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C3);
 		return result;
+	}
+
+	[[nodiscard]] auto register_name(std::size_t index) const -> std::string_view {
+		const auto reg_id = static_cast<unsigned>(index + 1);
+		return cs_reg_name(m_cs, reg_id);
 	}
 
 	disassembler() {

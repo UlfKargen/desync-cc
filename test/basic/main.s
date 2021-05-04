@@ -5,7 +5,23 @@
 string_length:
 .LFB0:
 	.cfi_startproc
-	pushq	%rbp
+	
+    xorq %rax, %rax
+    jz desync_jump_0
+
+desync_point_0:
+
+    xorq %rax, %rax
+    jz desync_jump_0
+
+desync_point_0:
+nop
+nop
+desync_jump_0:
+nop
+nop
+desync_jump_0:
+pushq	%rbp
 	.cfi_def_cfa_offset 16
 	.cfi_offset 6, -16
 	movq	%rsp, %rbp
@@ -36,9 +52,25 @@ parse_int:
 	pushq	%rbp
 	.cfi_def_cfa_offset 16
 	.cfi_offset 6, -16
-	movq	%rsp, %rbp
+	
+    xorq %rbp, %rbp
+    jz desync_jump_1
+
+desync_point_1:
+nop
+nop
+desync_jump_1:
+movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
-	subq	$24, %rsp
+	
+    xorq %rax, %rax
+    jz desync_jump_1
+
+desync_point_1:
+nop
+nop
+desync_jump_1:
+subq	$24, %rsp
 	movq	%rdi, -24(%rbp)
 	movl	$0, -12(%rbp)
 	movl	$1, -8(%rbp)
@@ -48,7 +80,16 @@ parse_int:
 	movl	%eax, -4(%rbp)
 	jmp	.L6
 .L7:
-	movl	-4(%rbp), %eax
+	
+    xorq %rax, %rax
+    jz desync_jump_2
+
+desync_point_2:
+nop
+nop
+nop
+desync_jump_2:
+movl	-4(%rbp), %eax
 	movslq	%eax, %rdx
 	movq	-24(%rbp), %rax
 	addq	%rdx, %rax
@@ -84,7 +125,42 @@ vector3_square:
 	pushq	%rbp
 	.cfi_def_cfa_offset 16
 	.cfi_offset 6, -16
-	movq	%rsp, %rbp
+	
+    xorq %rbp, %rbp
+    jz desync_jump_2
+
+desync_point_2:
+nop
+nop
+nop
+desync_jump_2:
+
+    xorq %rbp, %rbp
+    jz desync_jump_3
+
+desync_point_3:
+
+    xorq %rbp, %rbp
+    jz desync_jump_3
+
+desync_point_3:
+nop
+nop
+nop
+desync_jump_3:
+
+    xorl %eax, %eax
+    jz desync_jump_4
+
+desync_point_4:
+nop
+nop
+desync_jump_4:
+nop
+nop
+nop
+desync_jump_3:
+movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
 	movl	%edi, -4(%rbp)
 	movl	%esi, -8(%rbp)
@@ -120,7 +196,23 @@ test123:
 	pushq	%rbp
 	.cfi_def_cfa_offset 16
 	.cfi_offset 6, -16
-	movq	%rsp, %rbp
+	
+    
+    xorq %rbp, %rbp
+    jz desync_jump_5
+
+desync_point_5:
+nop
+nop
+desync_jump_5:
+xorl %eax, %eax
+    jz desync_jump_4
+
+desync_point_4:
+nop
+nop
+desync_jump_4:
+movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
 	movl	asdf(%rip), %eax
 	addl	$1, %eax
@@ -151,12 +243,29 @@ main:
 	.cfi_offset 3, -24
 	movl	%edi, -68(%rbp)
 	movq	%rsi, -80(%rbp)
-	movq	%fs:40, %rax
+	
+    xorq %rax, %rax
+    jz desync_jump_6
+
+desync_point_6:
+nop
+nop
+nop
+desync_jump_6:
+movq	%fs:40, %rax
 	movq	%rax, -24(%rbp)
 	xorl	%eax, %eax
 	cmpl	$4, -68(%rbp)
 	je	.L13
-	movl	$-1, %eax
+	
+    xorq %rcx, %rcx
+    jz desync_jump_5
+
+desync_point_5:
+nop
+nop
+desync_jump_5:
+movl	$-1, %eax
 	jmp	.L17
 .L13:
 	movl	$0, %eax
@@ -170,13 +279,36 @@ main:
 	jmp	.L15
 .L16:
 	movl	-52(%rbp), %eax
-	cltq
+	
+    xorq %rax, %rax
+    jz desync_jump_7
+
+desync_point_7:
+nop
+desync_jump_7:
+cltq
 	leaq	0(,%rax,8), %rdx
 	movq	-80(%rbp), %rax
 	addq	%rdx, %rax
 	movq	(%rax), %rax
 	movq	-48(%rbp), %rbx
-	leaq	4(%rbx), %rdx
+	
+    xorq %rdi, %rdi
+    jz desync_jump_6
+
+desync_point_6:
+nop
+nop
+
+    xorq %rdi, %rdi
+    jz desync_jump_8
+
+desync_point_8:
+nop
+desync_jump_8:
+nop
+desync_jump_6:
+leaq	4(%rbx), %rdx
 	movq	%rdx, -48(%rbp)
 	movq	%rax, %rdi
 	call	parse_int
@@ -196,7 +328,22 @@ main:
 	leaq	.LC0(%rip), %rdi
 	movl	$0, %eax
 	call	printf@PLT
-	movl	$0, %eax
+	
+    xorq %rcx, %rcx
+    jz desync_jump_9
+
+desync_point_9:
+nop
+nop
+desync_jump_9:
+
+    xorq %rcx, %rcx
+    jz desync_jump_10
+
+desync_point_10:
+nop
+desync_jump_10:
+movl	$0, %eax
 .L17:
 	movq	-24(%rbp), %rcx
 	subq	%fs:40, %rcx

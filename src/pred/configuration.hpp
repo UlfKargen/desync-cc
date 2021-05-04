@@ -40,12 +40,6 @@ struct configuration final {
 	static constexpr auto default_junk_length = std::size_t{2};
 	static constexpr auto default_interval = std::size_t{10};
 
-	[[nodiscard]] static auto from_string(std::string_view config_string) -> configuration {
-		auto config = configuration{};
-		config.parse_string(config_string);
-		return config;
-	}
-
 	junk_length_distribution_type junk_length_distribution = junk_length_distribution_type::constant;
 	interval_distribution_type interval_distribution = interval_distribution_type::constant;
 	predicate_distribution_type predicate_distribution = predicate_distribution_type::uniform;
@@ -64,6 +58,7 @@ struct configuration final {
 	std::vector<std::string_view> predicate_files{};
 	std::unordered_map<std::string_view, std::size_t> predicate_weights{};
 	std::optional<std::size_t> seed{};
+	std::string base_dir{"./"};
 	bool verbose = false;
 
 	auto parse_string(std::string_view config_string) -> void {
