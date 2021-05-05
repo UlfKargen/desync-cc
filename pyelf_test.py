@@ -86,17 +86,35 @@ def find_junk_bytes(pos_single_bytes, len_junk_bytes):
 		junk_bytes.append(pos_single_bytes.pop(-1))
 	
 	if junk_bytes:
-		print("Trying junk bytes: {}".format(bytes([junk_bytes[0]])))
+		junk_print = ''
+		for junk_byte in junk_bytes:
+			junk_print += str(bytes([junk_byte]))
+		print("Trying junk bytes: " + junk_print)
 
 	return (junk_bytes, pos_single_bytes, len_junk_bytes)
 	
 	
 	
-def get_pos_bytes_lists():
-	#from capstone get list of single byters
-	#C = list(set(A)) # - set(B))	
+def get_pos_bytes_lists():	
 	pos_single_bytes = random.sample(range(256), 256)
-	#list(range(0, 256))	
+	single_byte_instr_list = []
+	instr_prefix_list = []
+	with open('single_byte_instr_list.txt', 'r') as f:
+		byte = f.readline()
+		while byte:
+			byte = byte[:-1]
+			single_byte_instr_list.append(int(byte[2:], 16)) #Cut away the newline
+			byte = f.readline()
+		f.close()	
+	with open('instr_prefix_list.txt', 'r') as f:
+		prefix = f.readline()
+		while prefix:
+			prefix = prefix[:-1]
+			instr_prefix_list.append(int(prefix[2:], 16))
+			prefix = f.readline()
+		f.close()
+		
+	pos_single_bytes = list(set(pos_single_bytes) - set(single_byte_instr_list + instr_prefix_list))
 	return pos_single_bytes
 	
 	
