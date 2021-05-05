@@ -14,8 +14,9 @@ def create_predicate(desync_count, num_junk_bytes, junk_bytes):
 	
 def create_junk_bytes(num_junk_bytes, single_byte_instr_list):
 	junk_bytes = ''
-	for i in range(num_junk_bytes):
-		junk_bytes += '\t.byte\t' +  random.choice(single_byte_instr_list) + '\n'
+	junk_list = random.sample(single_byte_instr_list, num_junk_bytes)
+	for junk_byte in junk_list:
+		junk_bytes += '\t.byte\t' +  junk_byte + '\n' 	
 	
 	return junk_bytes	
 
@@ -23,7 +24,13 @@ def create_junk_bytes(num_junk_bytes, single_byte_instr_list):
 
 def create_single_byte_instr_list():
 	single_byte_instr_list = []
-	single_byte_instr_list.append('0x90')
+		
+	with open('single_byte_instr_list.txt', 'r') as f:
+		byte = f.readline()
+		while byte:
+			single_byte_instr_list.append(byte[:-1]) #Cut away the newline
+			byte = f.readline()
+		f.close()
 	
 	return single_byte_instr_list
 
