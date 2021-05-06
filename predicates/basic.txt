@@ -17,3 +17,7 @@ predicate movq_jz(reg_a: r64) {
     movq $0, %reg_a
     jz DESYNC
 }
+
+predicate nop(reg_a: r32) {
+    movl $0, %reg_a
+}

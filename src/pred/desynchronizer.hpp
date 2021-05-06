@@ -67,7 +67,7 @@ public:
 			auto stream = std::ostringstream{};
 			auto assembly_rest = std::size_t{0};
 			auto next = std::size_t{0};
-			auto label_index = std::size_t{0};
+			auto predicate_count = std::size_t{0};
 			const auto& instructions = cfg.instructions();
 			for (auto i = std::size_t{0}; i < instructions.size(); i = next) {
 				const auto& predicate = m_predicates[generate_predicate()];
@@ -75,14 +75,14 @@ public:
 					if (std::regex_match(std::string{instructions[i].string}, m_instruction_pattern)) {
 						if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_disassembler)) {
 							const auto assembly_index = instructions[i].string.data() - assembly.data();
-							stream << assembly.substr(assembly_rest, assembly_index - assembly_rest);
+							stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n';
 							assembly_rest = assembly_index;
-							const auto junk_label = util::concat("desync_point_", label_index);
-							const auto jump_label = util::concat("desync_jump_", label_index);
-							++label_index;
+							const auto junk_length = generate_junk_length();
+							const auto junk_label = util::concat("desyncpoint", predicate_count, '_', junk_length);
+							const auto jump_label = util::concat(".Ldesyncjump", predicate_count);
+							++predicate_count;
 							predicate.apply(stream, jump_label, std::span{*arguments});
 							stream << '\n' << junk_label << ":\n";
-							const auto junk_length = generate_junk_length();
 							for (auto n = std::size_t{0}; n < junk_length; ++n) {
 								stream << "nop\n";
 							}
@@ -101,7 +101,7 @@ public:
 			stream << assembly.substr(assembly_rest);
 			result = stream.str();
 			if (m_verbose) {
-				print_result(result);
+				print_result(result, predicate_count);
 			}
 		}
 		return result;
@@ -192,7 +192,7 @@ private:
 					for (auto i = std::size_t{0}; i < free_registers.size(); ++i) {
 						if (free_registers[i] && applicable_registers(parameter)[i]) {
 							arguments.emplace_back(disassembler.register_name(i));
-							free_registers[i] = false;
+							free_registers &= ~disassembler::related_registers(i);
 							found = true;
 							break;
 						}
@@ -247,13 +247,7 @@ private:
 			const auto assembly = stream.str();
 			try {
 				const auto assemble_result = assembler.assemble(assembly);
-				if (assemble_result.statement_count == 0) {
-					throw error{filename, ": Predicate \"", m_name, "\": Assembler error: No statements assembled!"};
-				}
 				const auto disassemble_result = disassembler.disassemble(assemble_result.encoding);
-				if (disassemble_result.instructions.size() == 0) {
-					throw error{filename, ": Predicate \"", m_name, "\": Disassembler error: No instructions disassembled!"};
-				}
 				for (const auto& instruction : std::span{disassemble_result.instructions.data(), disassemble_result.instructions.size()}) {
 					const auto access = disassembler.access(instruction);
 					m_required_flags |= access.flags_written;
@@ -286,11 +280,14 @@ private:
 			cfg);
 	}
 
-	static auto print_result(std::string_view assembly) -> void {
+	static auto print_result(std::string_view assembly, std::size_t predicate_count) -> void {
 		util::println(
 			"===================================================================\n"
 			"RESULT\n"
-			"===================================================================\n",
+			"===================================================================\n"
+			"Predicates inserted: ",
+			predicate_count,
+			"\n",
 			assembly);
 	}
 

@@ -156,13 +156,14 @@ public:
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
 			result[static_cast<std::size_t>(X86_REG_EAX - 1)] = true;
-			result[static_cast<std::size_t>(X86_REG_EBX - 1)] = true;
-			result[static_cast<std::size_t>(X86_REG_ECX - 1)] = true;
-			result[static_cast<std::size_t>(X86_REG_EDX - 1)] = true;
-			result[static_cast<std::size_t>(X86_REG_ESI - 1)] = true;
-			result[static_cast<std::size_t>(X86_REG_EDI - 1)] = true;
-			result[static_cast<std::size_t>(X86_REG_EBP - 1)] = true;
-			result[static_cast<std::size_t>(X86_REG_ESP - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_EBX - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_ECX - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_EDX - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_ESI - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_EDI - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_EBP - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_ESP - 1)] = true;
+			// TODO: Check if ESP, etc. cause problems
 			return result;
 		}();
 		return bits;
@@ -172,16 +173,217 @@ public:
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
 			result[static_cast<std::size_t>(X86_REG_RAX - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_RBX - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_RCX - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_RDX - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_RSI - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_RDI - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_RBP - 1)] = true;
+			//result[static_cast<std::size_t>(X86_REG_RSP - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_ax() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_AH - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_AL - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_AX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_EAX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_RAX - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_bx() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_BH - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_BL - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_BX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_EBX - 1)] = true;
 			result[static_cast<std::size_t>(X86_REG_RBX - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_cx() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_CH - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_CL - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_CX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_ECX - 1)] = true;
 			result[static_cast<std::size_t>(X86_REG_RCX - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_dx() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_DH - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_DL - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_DX - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_EDX - 1)] = true;
 			result[static_cast<std::size_t>(X86_REG_RDX - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_si() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_SI - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_ESI - 1)] = true;
 			result[static_cast<std::size_t>(X86_REG_RSI - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_di() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_DI - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_EDI - 1)] = true;
 			result[static_cast<std::size_t>(X86_REG_RDI - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_bp() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_BP - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_EBP - 1)] = true;
 			result[static_cast<std::size_t>(X86_REG_RBP - 1)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_sp() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[static_cast<std::size_t>(X86_REG_SP - 1)] = true;
+			result[static_cast<std::size_t>(X86_REG_ESP - 1)] = true;
 			result[static_cast<std::size_t>(X86_REG_RSP - 1)] = true;
 			return result;
 		}();
 		return bits;
+	}
+
+	[[nodiscard]] static auto related_registers(std::size_t i) -> std::bitset<register_count> {
+		// clang-format off
+		switch (i) {
+			case static_cast<std::size_t>(X86_REG_AH - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_AL - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_AX - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_EAX - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_RAX - 1):
+				return registers_ax();
+			case static_cast<std::size_t>(X86_REG_BH - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_BL - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_BX - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_EBX - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_RBX - 1):
+				return registers_bx();
+			case static_cast<std::size_t>(X86_REG_CH - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_CL - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_CX - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_ECX - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_RCX - 1):
+				return registers_cx();
+			case static_cast<std::size_t>(X86_REG_DH - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_DL - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_DX - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_EDX - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_RDX - 1):
+				return registers_dx();
+			case static_cast<std::size_t>(X86_REG_SI - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_ESI - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_RSI - 1):
+				return registers_si();
+			case static_cast<std::size_t>(X86_REG_DI - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_EDI - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_RDI - 1):
+				return registers_di();
+			case static_cast<std::size_t>(X86_REG_BP - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_EBP - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_RBP - 1):
+				return registers_bp();
+			case static_cast<std::size_t>(X86_REG_SP - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_ESP - 1): [[fallthrough]];
+			case static_cast<std::size_t>(X86_REG_RSP - 1):
+				return registers_sp();
+		}
+		// clang-format on
+		auto result = std::bitset<register_count>{};
+		result[i] = true;
+		return result;
+	}
+
+	[[nodiscard]] static auto related_registers(std::bitset<register_count> registers) -> std::bitset<register_count> {
+		auto result = registers;
+		// clang-format off
+		if (registers[static_cast<std::size_t>(X86_REG_AH - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_AL - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_AX - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_EAX - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_RAX - 1)]) {
+			result |= registers_ax();
+		}
+		if (registers[static_cast<std::size_t>(X86_REG_BH - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_BL - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_BX - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_EBX - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_RBX - 1)]) {
+			result |= registers_bx();
+		}
+		if (registers[static_cast<std::size_t>(X86_REG_CH - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_CL - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_CX - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_ECX - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_RCX - 1)]) {
+			result |= registers_cx();
+		}
+		if (registers[static_cast<std::size_t>(X86_REG_DH - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_DL - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_DX - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_EDX - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_RDX - 1)]) {
+			result |= registers_dx();
+		}
+		if (registers[static_cast<std::size_t>(X86_REG_SI - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_ESI - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_RSI - 1)]) {
+			result |= registers_si();
+		}
+		if (registers[static_cast<std::size_t>(X86_REG_DI - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_EDI - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_RDI - 1)]) {
+			result |= registers_di();
+		}
+		if (registers[static_cast<std::size_t>(X86_REG_BP - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_EBP - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_RBP - 1)]) {
+			result |= registers_bp();
+		}
+		if (registers[static_cast<std::size_t>(X86_REG_SP - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_ESP - 1)] ||
+			registers[static_cast<std::size_t>(X86_REG_RSP - 1)]) {
+			result |= registers_sp();
+		}
+		// clang-format on
+		return result;
 	}
 
 	[[nodiscard]] auto registers_string(const std::bitset<register_count>& registers) const -> std::string {
@@ -262,6 +464,7 @@ public:
 		if (const auto err = cs_regs_access(m_cs, &info, regs_read.data(), &read_count, regs_write.data(), &write_count); err != CS_ERR_OK) {
 			throw error{cs_strerror(err)};
 		}
+		// TODO: Check if implicitly affected registers are taken into account
 
 		for (auto i = std::size_t{0}; i < read_count; ++i) {
 			assert(regs_read[i] >= 1);

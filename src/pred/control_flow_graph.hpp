@@ -221,7 +221,7 @@ private:
 			assert(m_disassembler);
 			const auto access = m_disassembler->access(info);
 			block.live_registers &= ~access.registers_written;
-			block.live_registers |= access.registers_read;
+			block.live_registers |= disassembler::related_registers(access.registers_read);
 			block.live_flags &= ~access.flags_written;
 			block.live_flags |= access.flags_read;
 			instruction.live_registers = block.live_registers;

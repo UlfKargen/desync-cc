@@ -15,6 +15,15 @@ desync_point_0:
     jz desync_jump_0
 
 desync_point_0:
+
+
+    xorq %rax, %rax
+    jz .Ldesyncjump0
+
+desyncpoint0_2:
+nop
+nop
+.Ldesyncjump0:
 nop
 nop
 desync_jump_0:
@@ -57,6 +66,15 @@ parse_int:
     jz desync_jump_1
 
 desync_point_1:
+
+
+    xorq %rbp, %rbp
+    jz .Ldesyncjump1
+
+desyncpoint1_2:
+nop
+nop
+.Ldesyncjump1:
 nop
 nop
 desync_jump_1:
@@ -68,6 +86,16 @@ movq	%rsp, %rbp
 
 desync_point_1:
 nop
+
+
+    xorq %rax, %rax
+    jz .Ldesyncjump2
+
+desyncpoint2_3:
+nop
+nop
+nop
+.Ldesyncjump2:
 nop
 desync_jump_1:
 subq	$24, %rsp
@@ -81,7 +109,17 @@ subq	$24, %rsp
 	jmp	.L6
 .L7:
 	
-    xorq %rax, %rax
+    
+
+    xorq %rbp, %rbp
+    jz .Ldesyncjump3
+
+desyncpoint3_3:
+nop
+nop
+nop
+.Ldesyncjump3:
+xorq %rax, %rax
     jz desync_jump_2
 
 desync_point_2:
@@ -99,7 +137,16 @@ movl	-4(%rbp), %eax
 	imull	-8(%rbp), %eax
 	addl	%eax, -12(%rbp)
 	movl	-8(%rbp), %edx
-	movl	%edx, %eax
+	
+
+    xorl %eax, %eax
+    jz .Ldesyncjump4
+
+desyncpoint4_2:
+nop
+nop
+.Ldesyncjump4:
+movl	%edx, %eax
 	sall	$2, %eax
 	addl	%edx, %eax
 	addl	%eax, %eax
@@ -144,6 +191,15 @@ desync_point_3:
     jz desync_jump_3
 
 desync_point_3:
+
+
+    xorq %rbp, %rbp
+    jz .Ldesyncjump5
+
+desyncpoint5_2:
+nop
+nop
+.Ldesyncjump5:
 nop
 nop
 nop
@@ -172,7 +228,17 @@ movq	%rsp, %rbp
 	imull	%eax, %eax
 	addl	%eax, %edx
 	movl	-12(%rbp), %eax
-	imull	%eax, %eax
+	
+
+    xorq %rbp, %rbp
+    jz .Ldesyncjump6
+
+desyncpoint6_3:
+nop
+nop
+nop
+.Ldesyncjump6:
+imull	%eax, %eax
 	addl	%edx, %eax
 	popq	%rbp
 	.cfi_def_cfa 7, 8
@@ -212,6 +278,14 @@ desync_point_4:
 nop
 nop
 desync_jump_4:
+
+
+    xorq %rbp, %rbp
+    jz .Ldesyncjump7
+
+desyncpoint7_1:
+nop
+.Ldesyncjump7:
 movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
 	movl	asdf(%rip), %eax
@@ -248,6 +322,23 @@ main:
     jz desync_jump_6
 
 desync_point_6:
+
+
+    xorq %rax, %rax
+    jz .Ldesyncjump8
+
+desyncpoint8_1:
+nop
+.Ldesyncjump8:
+
+
+    xorq %rax, %rax
+    jz .Ldesyncjump9
+
+desyncpoint9_2:
+nop
+nop
+.Ldesyncjump9:
 nop
 nop
 nop
@@ -263,6 +354,14 @@ movq	%fs:40, %rax
 
 desync_point_5:
 nop
+
+
+    xorq %rcx, %rcx
+    jz .Ldesyncjump10
+
+desyncpoint10_1:
+nop
+.Ldesyncjump10:
 nop
 desync_jump_5:
 movl	$-1, %eax
@@ -284,6 +383,16 @@ movl	$-1, %eax
     jz desync_jump_7
 
 desync_point_7:
+
+
+    xorq %rdx, %rdx
+    jz .Ldesyncjump11
+
+desyncpoint11_3:
+nop
+nop
+nop
+.Ldesyncjump11:
 nop
 desync_jump_7:
 cltq
@@ -310,7 +419,16 @@ nop
 desync_jump_6:
 leaq	4(%rbx), %rdx
 	movq	%rdx, -48(%rbp)
-	movq	%rax, %rdi
+	
+
+    xorq %rdi, %rdi
+    jz .Ldesyncjump12
+
+desyncpoint12_2:
+nop
+nop
+.Ldesyncjump12:
+movq	%rax, %rdi
 	call	parse_int
 	movl	%eax, (%rbx)
 	addl	$1, -52(%rbp)
@@ -341,6 +459,16 @@ desync_jump_9:
     jz desync_jump_10
 
 desync_point_10:
+
+
+    xorq %rcx, %rcx
+    jz .Ldesyncjump13
+
+desyncpoint13_3:
+nop
+nop
+nop
+.Ldesyncjump13:
 nop
 desync_jump_10:
 movl	$0, %eax
