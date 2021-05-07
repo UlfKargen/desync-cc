@@ -36,37 +36,36 @@ auto main(int argc, char* argv[]) -> int {
 		}
 
 		auto desynchronizer = desync::desynchronizer{};
-		{
-			auto config = desync::configuration{};
-			config.verbose = options.verbose;
-			if (const auto* const env_config_base_dir = std::getenv("DESYNC_CONFIG_BASE_DIR")) {
-				config.base_dir = env_config_base_dir;
-				if (!config.base_dir.empty() && config.base_dir.back() != '/') {
-					config.base_dir.push_back('/');
-				}
+		auto config = desync::configuration{};
+		config.verbose = options.verbose;
+		config.dry_run = options.dry_run;
+		if (const auto* const env_config_base_dir = std::getenv("DESYNC_CONFIG_BASE_DIR")) {
+			config.base_dir = env_config_base_dir;
+			if (!config.base_dir.empty() && config.base_dir.back() != '/') {
+				config.base_dir.push_back('/');
 			}
-			if (!options.config_string.empty()) {
-				config.parse_string(options.config_string);
-			} else {
-				auto config_file = config.base_dir;
-				if (options.config_file.empty()) {
-					if (const auto* const env_config_file = std::getenv("DESYNC_CONFIG_FILE")) {
-						config_file.append(env_config_file);
-					}
-				} else {
-					config_file.append(options.config_file);
-				}
-				if (config_file.size() == config.base_dir.size()) {
-					println("desync: Warning: No config specified. Using default configuration.");
-				} else if (auto config_string = desync::util::read_file(config_file.c_str())) {
-					config.parse_string(*config_string);
-				} else {
-					println("desync: Failed to open config file \"", config_file, "\" for reading.");
-					return EXIT_FAILURE;
-				}
-			}
-			desynchronizer.configure(config);
 		}
+		if (!options.config_string.empty()) {
+			config.parse_string(options.config_string);
+		} else {
+			auto config_file = config.base_dir;
+			if (options.config_file.empty()) {
+				if (const auto* const env_config_file = std::getenv("DESYNC_CONFIG_FILE")) {
+					config_file.append(env_config_file);
+				}
+			} else {
+				config_file.append(options.config_file);
+			}
+			if (config_file.size() == config.base_dir.size()) {
+				println("desync: Warning: No config specified. Using default configuration.");
+			} else if (auto config_string = desync::util::read_file(config_file.c_str())) {
+				config.parse_string(*config_string);
+			} else {
+				println("desync: Failed to open config file \"", config_file, "\" for reading.");
+				return EXIT_FAILURE;
+			}
+		}
+		desynchronizer.configure(config);
 
 		auto error = false;
 		for (const auto& argument : options.arguments) {
@@ -89,9 +88,11 @@ auto main(int argc, char* argv[]) -> int {
 				error = true;
 				continue;
 			}
-			if (!desync::util::write_file(filename.c_str(), new_assembly)) {
-				println("desync: Failed to open file \"", filename, "\" for writing.");
-				error = true;
+			if (!config.dry_run) {
+				if (!desync::util::write_file(filename.c_str(), new_assembly)) {
+					println("desync: Failed to open file \"", filename, "\" for writing.");
+					error = true;
+				}
 			}
 		}
 

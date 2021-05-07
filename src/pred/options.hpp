@@ -19,6 +19,7 @@ struct options final {
   -h --help                 Display this information.
   -V --version              Display version information.
   -v --verbose              Print more information while running.
+  -d --dry-run				Don't write any file changes.
   -c --config-string <arg>  Specify configuration string to use.
   -f --config-file <arg>    Specify configuration file to read and use.)";
 	}
@@ -33,6 +34,7 @@ struct options final {
 	bool help = false;
 	bool version = false;
 	bool verbose = false;
+	bool dry_run = false;
 	std::string_view config_string{};
 	std::string_view config_file{};
 
@@ -58,6 +60,8 @@ struct options final {
 						version = true;
 					} else if (long_name == "verbose") {
 						verbose = true;
+					} else if (long_name == "dry-run") {
+						dry_run = true;
 					} else if (long_name == "config-string") {
 						config_string = read_required_argument("config-string");
 					} else if (long_name == "config-file") {
@@ -76,6 +80,9 @@ struct options final {
 								break;
 							case 'v':
 								verbose = true;
+								break;
+							case 'd':
+								dry_run = true;
 								break;
 							case 'c':
 								break;

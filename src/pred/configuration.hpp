@@ -60,6 +60,7 @@ struct configuration final {
 	std::optional<std::size_t> seed{};
 	std::string base_dir{"./"};
 	bool verbose = false;
+	bool dry_run = false;
 
 	auto parse_string(std::string_view config_string) -> void {
 		for (const auto [name, value] : configuration_parser::parse_commands(config_string)) {
@@ -85,6 +86,16 @@ private:
 						config.verbose = false;
 					} else {
 						throw error{"Invalid verbosity setting \"", value, "\""};
+					}
+				}},
+			{"dry_run",
+				[](configuration& config, std::string_view value) -> void {
+					if (value == "true") {
+						config.dry_run = true;
+					} else if (value == "false") {
+						config.dry_run = false;
+					} else {
+						throw error{"Invalid dry run setting \"", value, "\""};
 					}
 				}},
 			{"seed",
