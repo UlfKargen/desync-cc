@@ -2,6 +2,7 @@ import struct
 import sys
 import argparse
 import random
+import datetime
 from itertools import combinations
 from capstone import *
 from elftools.elf.elffile import ELFFile
@@ -178,6 +179,11 @@ def get_sym_offsets(desync_list, symtab, elf):
 		
 def main():
 	"""
+	Used for benchmark: Start of main()
+	"""
+	main_start_time = datetime.datetime.now()
+	
+	"""
 	Retrieve the arguments, namely the name of the binary that is to be
 	desynchronized, and a flag -v (--verbose) used for debugging info.
 	"""
@@ -206,6 +212,13 @@ def main():
 		
 		for symbol in desync_list:			
 			"""
+			Used for benchmark: Start of symbol loop
+			"""
+			start_time = datetime.datetime.now()
+			loop_count = 0
+			
+			
+			"""
 			Extract a code snippet of length READ_LENGTH.
 			"""			
 			f.seek(sym_offsets[symbol])
@@ -217,8 +230,7 @@ def main():
 			"""
 			org_instr_list = get_disasm_instr_list(code)
 			org_length = get_disasm_length(org_instr_list)
-			
-			#global PRINT_DEBUG_INFO
+						
 			if PRINT_DEBUG_INFO:				
 				print('\n-------------------------------------')
 				print('Desynchronizing point: {}'.format(symbol))
@@ -239,6 +251,7 @@ def main():
 			tries_left = TRIES
 			desynchronized = False			
 			while (not desynchronized):
+				loop_count += 1
 				if tries_left == 0:
 					tries_left = TRIES
 					len_junk_bytes_tried -= 1					
@@ -277,8 +290,23 @@ def main():
 			else:
 				print('**********\n Failure for symbol {} \n ********** '.format(symbol))
 				print('No suitable junk bytes found')
-		
+			
+			"""
+			Used for benchmark: End of symbol loop
+			"""
+			end_time = datetime.datetime.now() 
+			exec_time = end_time - start_time
+			print('--- Execution time for desynchronization: {}---'.format(exec_time))
+			print('--- Loops needed: {} ---\n'.format(loop_count))
+			
 		f.close()
+	
+	"""
+	Used for benchmark: End of main()
+	"""
+	main_end_time = datetime.datetime.now()
+	main_exec_time = main_end_time - main_start_time	
+	print('--- Total execution time: {} ---\n'.format(main_exec_time))
 									
 		
 
