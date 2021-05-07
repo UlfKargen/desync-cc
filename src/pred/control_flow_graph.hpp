@@ -8,6 +8,7 @@
 #include <pred/assembler.hpp>       // desync::assembler
 #include <pred/assembly_parser.hpp> // desync::assembly_parser
 #include <pred/disassembler.hpp>    // desync::disassembler
+#include <queue>                    // std::queue
 #include <span>                     // std::span
 #include <stdexcept>                // std::runtime_error
 #include <string>                   // std::string
@@ -34,18 +35,14 @@ public:
 	};
 
 	struct basic_block final {
-		std::string_view label{};                                   		// Label of this block, or empty if the block was created from a branch.
-		std::size_t begin{};                                        		// First instruction index in the block.
-		std::size_t end{};                                          		// End of the instructions in this block.
-		std::vector<basic_block*> predecessors{};                   		// Blocks that are known to potentially jump to the beginning of this block.
-		std::vector<basic_block*> successors{};                     		// Blocks that are known to be potentially reachable from this block.
-		std::unique_ptr<basic_block> next{};                        		// Next block in the order of declaration in the file. Not necessarily a successor of this block.
-		std::bitset<disassembler::register_count> live_registers{}; 		// Set of registers which are live at the beginning of this block.
-		std::bitset<disassembler::flag_count> live_flags{};         		// Set of flags which are live at the beginning of this block.
-		std::bitset<disassembler::register_count> exit_live_registers{};	// Set of registers which are live at the beginning of this block.
-		std::bitset<disassembler::flag_count> exit_live_flags{};        	// Set of flags which are live at the beginning of this block.
-		bool liveness_analyzed = false;                             		// Whether or not this block has been analyzed yet.
-		bool busy = false;                             						// Whether or not this block is currently processing.
+		std::string_view label{};                                   // Label of this block, or empty if the block was created from a branch.
+		std::size_t begin{};                                        // First instruction index in the block.
+		std::size_t end{};                                          // End of the instructions in this block.
+		std::vector<basic_block*> predecessors{};                   // Blocks that are known to potentially jump to the beginning of this block.
+		std::vector<basic_block*> successors{};                     // Blocks that are known to be potentially reachable from this block.
+		std::unique_ptr<basic_block> next{};                        // Next block in the order of declaration in the file. Not necessarily a successor of this block.
+		std::bitset<disassembler::register_count> live_registers{}; // Set of registers which are live at the beginning of this block.
+		std::bitset<disassembler::flag_count> live_flags{};         // Set of flags which are live at the beginning of this block.
 	};
 
 	[[nodiscard]] static auto liveness_analyzed(std::string_view assembly, const assembler& assembler, const disassembler& disassembler) -> control_flow_graph {
@@ -125,11 +122,10 @@ public:
 						if (disassembler::is_unconditional_jump(info)) {
 							// Remove edge to next block.
 							if (block->next) {
-								for (auto it = block->next->predecessors.begin(); it != block->next->predecessors.end(); ){
-									if (*it == block){
+								for (auto it = block->next->predecessors.begin(); it != block->next->predecessors.end();) {
+									if (*it == block) {
 										it = block->next->predecessors.erase(it);
-									}
-									else{
+									} else {
 										++it;
 									}
 								}
@@ -180,8 +176,15 @@ public:
 	}
 
 	auto analyze_liveness() -> void {
+		auto work = std::queue<basic_block*>{};
 		for (auto* block = m_head.get(); block; block = block->next.get()) {
-			analyze_liveness(*block);
+			analyze_liveness(*block, work);
+		}
+		while (!work.empty()) {
+			auto* const block = work.front();
+			work.pop();
+			assert(block);
+			analyze_liveness(*block, work);
 		}
 	}
 
@@ -206,11 +209,9 @@ public:
 	}
 
 private:
-	auto analyze_liveness(basic_block& block) -> void { // NOLINT(misc-no-recursion)
-		if (block.liveness_analyzed || block.busy) {
-			return;
-		}
-		block.busy = true;
+	auto analyze_liveness(basic_block& block, std::queue<basic_block*>& work) -> void {
+		const auto old_live_registers = block.live_registers;
+		const auto old_live_flags = block.live_flags;
 		// TODO: Special case for call instructions
 		if (block.successors.empty()) {
 			block.live_registers.set();
@@ -218,13 +219,10 @@ private:
 		} else {
 			for (auto* const successor : block.successors) {
 				assert(successor);
-				analyze_liveness(*successor);
 				block.live_registers |= successor->live_registers;
 				block.live_flags |= successor->live_flags;
 			}
 		}
-		block.exit_live_registers |= block.live_registers;
-		block.exit_live_flags |= block.live_flags;
 		for (auto instruction_index = block.end; instruction_index-- != block.begin;) {
 			assert(instruction_index < m_instructions.size());
 			auto& instruction = m_instructions[instruction_index];
@@ -239,29 +237,11 @@ private:
 			instruction.live_registers = block.live_registers;
 			instruction.live_flags = block.live_flags;
 		}
-		block.busy = false;
-		block.liveness_analyzed = true;
-		for (auto* const predecessor : block.predecessors) {
-			assert(predecessor);
-			if (predecessor->liveness_analyzed){
-				if ((predecessor->exit_live_registers | block.live_registers).count() > predecessor->exit_live_registers.count()){	//TODO also check flags here
-					if (predecessor==&block){ //is this ugly?
-						block.liveness_analyzed = false;
-						block.live_registers |= block.exit_live_registers;
-						block.live_flags |= block.exit_live_flags;
-					}
-					else{
-						predecessor->liveness_analyzed = false;
-						predecessor->live_registers.reset();
-						predecessor->live_flags.reset();
-						predecessor->exit_live_registers.reset();
-						predecessor->exit_live_flags.reset();
-					}
-
-				}
+		if (block.live_registers != old_live_registers || block.live_flags != old_live_flags) {
+			for (auto* const predecessor : block.predecessors) {
+				assert(predecessor);
+				work.push(predecessor);
 			}
-			analyze_liveness(*predecessor);
-			//assert(predecessor->liveness_analyzed);
 		}
 	}
 
