@@ -117,8 +117,7 @@ public:
 	}
 
 	[[nodiscard]] static auto is_unconditional_jump(const cs_insn& info) -> bool {
-		return info.id == X86_INS_JMP || info.id == X86_INS_LJMP || info.id == X86_INS_CALL || info.id == X86_INS_LCALL || info.id == X86_INS_RET || info.id == X86_INS_RETF ||
-			info.id == X86_INS_RETFQ;
+		return info.id == X86_INS_JMP || info.id == X86_INS_LJMP || info.id == X86_INS_RET || info.id == X86_INS_RETF || info.id == X86_INS_RETFQ;
 	}
 
 	[[nodiscard]] static auto has_immediate_operand(const cs_insn& info) -> bool {
