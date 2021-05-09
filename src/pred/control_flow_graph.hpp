@@ -143,9 +143,11 @@ public:
 						block->end = new_block_begin;
 						// Update successors' predecessor pointers.
 						for (auto* const successor : new_block->successors) {
-							for (auto& predecessor : successor->predecessors) {
-								if (predecessor == block) {
-									predecessor = new_block.get();
+							if (successor) {
+								for (auto& predecessor : successor->predecessors) {
+									if (predecessor == block) {
+										predecessor = new_block.get();
+									}
 								}
 							}
 						}
@@ -161,12 +163,17 @@ public:
 					// Add the branch target as a successor.
 					if (disassembler::has_immediate_operand(info)) {
 						// Search for matching symbols.
+						auto found = false;
 						for (auto* const symbol : m_symbols) {
 							if (instruction.string.find(symbol->label) != std::string_view::npos) {
 								symbol->predecessors.push_back(block);
 								block->successors.push_back(symbol);
+								found = true;
 								break;
 							}
+						}
+						if (!found) {
+							block->successors.push_back(nullptr); // Unknown branch target (e.g. library function).
 						}
 					}
 					break;
@@ -218,9 +225,14 @@ private:
 			block.live_flags.set();
 		} else {
 			for (auto* const successor : block.successors) {
-				assert(successor);
-				block.live_registers |= successor->live_registers;
-				block.live_flags |= successor->live_flags;
+				if (successor) {
+					block.live_registers |= successor->live_registers;
+					block.live_flags |= successor->live_flags;
+				} else {
+					block.live_registers.set();
+					block.live_flags.set();
+					break;
+				}
 			}
 		}
 		for (auto instruction_index = block.end; instruction_index-- != block.begin;) {
@@ -289,13 +301,17 @@ inline auto operator<<(std::ostream& out, const control_flow_graph& cfg) -> std:
 		out << *block
 			<< " {\n"
 			   "    predecessors {\n";
-		for (const auto& predecessor : block->predecessors) {
+		for (const auto* const predecessor : block->predecessors) {
 			out << "        " << *predecessor << '\n';
 		}
 		out << "    }\n"
 			   "    successors {\n";
-		for (const auto& successor : block->successors) {
-			out << "        " << *successor << '\n';
+		for (const auto* const successor : block->successors) {
+			if (successor) {
+				out << "        " << *successor << '\n';
+			} else {
+				out << "        ???\n";
+			}
 		}
 		out << "    }\n"
 			   "    instructions {\n";

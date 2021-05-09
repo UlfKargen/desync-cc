@@ -1,5 +1,5 @@
 all:
-	$(CC) -O3 main.c other.c -lm
+	$(CC) -g -O3 main.c other.c -lm
 
 clean:
 	rm -f a.out
