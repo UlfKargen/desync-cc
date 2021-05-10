@@ -170,11 +170,10 @@ public:
 			result[register_index(X86_REG_EBX)] = true;
 			result[register_index(X86_REG_ECX)] = true;
 			result[register_index(X86_REG_EDX)] = true;
-			//result[register_index(X86_REG_ESI)] = true;
-			//result[register_index(X86_REG_EDI)] = true;
-			//result[register_index(X86_REG_EBP)] = true;
-			//result[register_index(X86_REG_ESP)] = true;
-			// TODO: Check if ESP, etc. cause problems
+			result[register_index(X86_REG_ESI)] = true;
+			result[register_index(X86_REG_EDI)] = true;
+			result[register_index(X86_REG_EBP)] = true;
+			result[register_index(X86_REG_ESP)] = true;
 			return result;
 		}();
 		return bits;
@@ -474,7 +473,6 @@ public:
 		if (const auto err = cs_regs_access(m_cs, &info, regs_read.data(), &read_count, regs_write.data(), &write_count); err != CS_ERR_OK) {
 			throw error{cs_strerror(err)};
 		}
-		// TODO: Check if implicitly affected registers are taken into account
 
 		for (auto i = std::size_t{0}; i < read_count; ++i) {
 			assert(regs_read[i] >= 1);
@@ -488,39 +486,43 @@ public:
 			result.registers_written[register_index(regs_write[i])] = true;
 		}
 
-		result.flags_read[flag_index(flag::CF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_CF);
-		result.flags_read[flag_index(flag::PF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_PF);
-		result.flags_read[flag_index(flag::AF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_AF);
-		result.flags_read[flag_index(flag::ZF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_ZF);
-		result.flags_read[flag_index(flag::SF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_SF);
-		result.flags_read[flag_index(flag::TF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_TF);
-		result.flags_read[flag_index(flag::IF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_IF);
-		result.flags_read[flag_index(flag::DF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_DF);
-		result.flags_read[flag_index(flag::OF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_OF);
-		result.flags_read[flag_index(flag::NT)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_NT);
-		result.flags_read[flag_index(flag::RF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_TEST_RF);
+		result.flags_read[flag_index(flag::CF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_CF | X86_EFLAGS_UNDEFINED_CF)) != 0;
+		result.flags_read[flag_index(flag::PF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_PF | X86_EFLAGS_UNDEFINED_PF)) != 0;
+		result.flags_read[flag_index(flag::AF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_AF | X86_EFLAGS_UNDEFINED_AF)) != 0;
+		result.flags_read[flag_index(flag::ZF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_ZF | X86_EFLAGS_UNDEFINED_ZF)) != 0;
+		result.flags_read[flag_index(flag::SF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_SF | X86_EFLAGS_UNDEFINED_SF)) != 0;
+		result.flags_read[flag_index(flag::TF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_TF)) != 0;
+		result.flags_read[flag_index(flag::IF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_IF)) != 0;
+		result.flags_read[flag_index(flag::DF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_DF)) != 0;
+		result.flags_read[flag_index(flag::OF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_OF | X86_EFLAGS_UNDEFINED_OF)) != 0;
+		result.flags_read[flag_index(flag::NT)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_NT)) != 0;
+		result.flags_read[flag_index(flag::RF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_RF)) != 0;
 
-		result.flags_read[flag_index(flag::C0)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_TEST_C0);
-		result.flags_read[flag_index(flag::C1)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_TEST_C1);
-		result.flags_read[flag_index(flag::C2)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_TEST_C2);
-		result.flags_read[flag_index(flag::C3)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_TEST_C3);
+		result.flags_written[flag_index(flag::CF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_CF | X86_EFLAGS_RESET_CF | X86_EFLAGS_SET_CF | X86_EFLAGS_UNDEFINED_CF)) != 0;
+		result.flags_written[flag_index(flag::PF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_PF | X86_EFLAGS_RESET_PF | X86_EFLAGS_SET_PF | X86_EFLAGS_UNDEFINED_PF)) != 0;
+		result.flags_written[flag_index(flag::AF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_AF | X86_EFLAGS_RESET_AF | X86_EFLAGS_SET_AF | X86_EFLAGS_UNDEFINED_AF)) != 0;
+		result.flags_written[flag_index(flag::ZF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_ZF | X86_EFLAGS_RESET_ZF | X86_EFLAGS_SET_ZF | X86_EFLAGS_UNDEFINED_ZF)) != 0;
+		result.flags_written[flag_index(flag::SF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_SF | X86_EFLAGS_RESET_SF | X86_EFLAGS_SET_SF | X86_EFLAGS_UNDEFINED_SF)) != 0;
+		result.flags_written[flag_index(flag::TF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_TF | X86_EFLAGS_RESET_TF)) != 0;
+		result.flags_written[flag_index(flag::IF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_IF | X86_EFLAGS_RESET_IF | X86_EFLAGS_SET_IF)) != 0;
+		result.flags_written[flag_index(flag::DF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_DF | X86_EFLAGS_RESET_DF | X86_EFLAGS_SET_DF)) != 0;
+		result.flags_written[flag_index(flag::OF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_OF | X86_EFLAGS_RESET_OF | X86_EFLAGS_SET_OF | X86_EFLAGS_UNDEFINED_OF)) != 0;
+		result.flags_written[flag_index(flag::NT)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_NT | X86_EFLAGS_RESET_NT)) != 0;
+		result.flags_written[flag_index(flag::RF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_RF | X86_EFLAGS_RESET_RF)) != 0;
 
-		result.flags_written[flag_index(flag::CF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_CF);
-		result.flags_written[flag_index(flag::PF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_PF);
-		result.flags_written[flag_index(flag::AF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_AF);
-		result.flags_written[flag_index(flag::ZF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_ZF);
-		result.flags_written[flag_index(flag::SF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_SF);
-		result.flags_written[flag_index(flag::TF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_TF);
-		result.flags_written[flag_index(flag::IF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_IF);
-		result.flags_written[flag_index(flag::DF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_DF);
-		result.flags_written[flag_index(flag::OF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_OF);
-		result.flags_written[flag_index(flag::NT)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_NT);
-		result.flags_written[flag_index(flag::RF)] = static_cast<bool>(info.detail->x86.eflags & X86_EFLAGS_MODIFY_RF);
+		result.flags_read[flag_index(flag::C0)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_UNDEFINED_C0 | X86_FPU_FLAGS_TEST_C0)) != 0;
+		result.flags_read[flag_index(flag::C1)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_UNDEFINED_C1 | X86_FPU_FLAGS_TEST_C1)) != 0;
+		result.flags_read[flag_index(flag::C2)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_UNDEFINED_C2 | X86_FPU_FLAGS_TEST_C2)) != 0;
+		result.flags_read[flag_index(flag::C3)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_UNDEFINED_C3 | X86_FPU_FLAGS_TEST_C3)) != 0;
 
-		result.flags_written[flag_index(flag::C0)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C0);
-		result.flags_written[flag_index(flag::C1)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C1);
-		result.flags_written[flag_index(flag::C2)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C2);
-		result.flags_written[flag_index(flag::C3)] = static_cast<bool>(info.detail->x86.eflags & X86_FPU_FLAGS_MODIFY_C3);
+		result.flags_written[flag_index(flag::C0)] = (info.detail->x86.fpu_flags &
+														 (X86_FPU_FLAGS_MODIFY_C0 | X86_FPU_FLAGS_RESET_C0 | X86_FPU_FLAGS_SET_C0 | X86_FPU_FLAGS_UNDEFINED_C0)) != 0;
+		result.flags_written[flag_index(flag::C1)] = (info.detail->x86.fpu_flags &
+														 (X86_FPU_FLAGS_MODIFY_C1 | X86_FPU_FLAGS_RESET_C1 | X86_FPU_FLAGS_SET_C1 | X86_FPU_FLAGS_UNDEFINED_C1)) != 0;
+		result.flags_written[flag_index(flag::C2)] = (info.detail->x86.fpu_flags &
+														 (X86_FPU_FLAGS_MODIFY_C2 | X86_FPU_FLAGS_RESET_C2 | X86_FPU_FLAGS_SET_C2 | X86_FPU_FLAGS_UNDEFINED_C2)) != 0;
+		result.flags_written[flag_index(flag::C3)] = (info.detail->x86.fpu_flags &
+														 (X86_FPU_FLAGS_MODIFY_C3 | X86_FPU_FLAGS_RESET_C3 | X86_FPU_FLAGS_SET_C3 | X86_FPU_FLAGS_UNDEFINED_C3)) != 0;
 		return result;
 	}
 
