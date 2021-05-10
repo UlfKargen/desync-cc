@@ -62,7 +62,7 @@ public:
 
 		// First pass: Consider only whole instructions and labels.
 		{
-			auto* block = m_head.get(); //TODO first block has no begin?
+			auto* block = m_head.get();
 			for (const auto& statement : statements) {
 				if (statement.type == assembly_parser::statement_type::instruction) {
 					// Add an instruction.
