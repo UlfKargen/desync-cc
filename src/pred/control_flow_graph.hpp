@@ -163,17 +163,17 @@ public:
 					// Add the branch target as a successor.
 					if (disassembler::has_immediate_operand(info)) {
 						// Search for matching symbols.
-						auto found = false;
-						for (auto* const symbol : m_symbols) {
-							if (instruction.string.find(symbol->label) != std::string_view::npos) {
+						const auto arguments = assembly_parser::parse_arguments(instruction.string);
+						if (arguments.size() == 2) {
+							if (const auto it = m_symbol_table.find(arguments[1].string); it != m_symbol_table.end()) {
+								auto* const symbol = it->second;
 								symbol->predecessors.push_back(block);
 								block->successors.push_back(symbol);
-								found = true;
-								break;
+							} else {
+								block->successors.push_back(nullptr); // Unknown branch target (e.g. library function).
 							}
-						}
-						if (!found) {
-							block->successors.push_back(nullptr); // Unknown branch target (e.g. library function).
+						} else {
+							throw error{"Unknown branch instruction format"};
 						}
 					}
 					break;
