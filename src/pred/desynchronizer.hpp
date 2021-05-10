@@ -41,6 +41,9 @@ public:
 
 	auto configure(const configuration& config) -> void {
 		m_verbose = config.verbose;
+		m_print_assembly = config.print_assembly;
+		m_print_cfg = config.print_cfg;
+		m_print_result = config.print_result;
 		m_instruction_pattern.assign(std::string{config.instruction_pattern});
 		const auto seed = configure_seed(config);
 		configure_junk_length_distribution(config);
@@ -60,8 +63,11 @@ public:
 			result = assembly;
 		} else {
 			const auto cfg = control_flow_graph::liveness_analyzed(assembly, m_assembler, m_disassembler);
-			if (m_verbose) {
-				print_control_flow_graph(assembly, cfg);
+			if (m_print_assembly || m_verbose) {
+				print_assembly(assembly);
+			}
+			if (m_print_cfg || m_verbose) {
+				print_control_flow_graph(cfg);
 			}
 
 			auto stream = std::ostringstream{};
@@ -100,7 +106,7 @@ public:
 			}
 			stream << assembly.substr(assembly_rest);
 			result = stream.str();
-			if (m_verbose) {
+			if (m_print_result || m_verbose) {
 				print_result(result, predicate_count);
 			}
 		}
@@ -267,13 +273,17 @@ private:
 		std::bitset<disassembler::flag_count> m_required_flags{};
 	};
 
-	static auto print_control_flow_graph(std::string_view assembly, const control_flow_graph& cfg) -> void {
+	static auto print_assembly(std::string_view assembly) -> void {
 		util::println(
 			"===================================================================\n"
 			"ASSEMBLY\n"
 			"===================================================================\n",
 			assembly,
-			"\n"
+			"\n");
+	}
+
+	static auto print_control_flow_graph(const control_flow_graph& cfg) -> void {
+		util::println(
 			"===================================================================\n"
 			"CONTROL FLOW GRAPH\n"
 			"===================================================================\n",
@@ -504,6 +514,9 @@ private:
 	std::discrete_distribution<std::size_t> m_predicate_discrete{};
 	std::vector<predicate> m_predicates{};
 	bool m_verbose = false;
+	bool m_print_assembly = false;
+	bool m_print_cfg = false;
+	bool m_print_result = false;
 };
 
 } // namespace desync
