@@ -123,13 +123,13 @@ private:
 		[[nodiscard]] static auto applicable_registers(parameter_type parameter) -> std::bitset<disassembler::register_count> {
 			switch (parameter) {
 				case parameter_type::r8:
-					return disassembler::registers_8bit();
+					return disassembler::general_registers_8bit();
 				case parameter_type::r16:
-					return disassembler::registers_16bit();
+					return disassembler::general_registers_16bit();
 				case parameter_type::r32:
-					return disassembler::registers_32bit();
+					return disassembler::general_registers_32bit();
 				case parameter_type::r64:
-					return disassembler::registers_64bit();
+					return disassembler::general_registers_64bit();
 			}
 			return {};
 		}
