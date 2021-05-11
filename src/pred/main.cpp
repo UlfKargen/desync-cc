@@ -78,7 +78,7 @@ auto main(int argc, char* argv[]) -> int {
 			}
 			auto new_assembly = std::string{};
 			try {
-				new_assembly = desynchronizer.apply_predicates(*assembly);
+				new_assembly = desynchronizer.apply_predicates(filename, *assembly);
 			} catch (const std::exception& e) {
 				println("desync: ", filename, ": ", e.what());
 				error = true;

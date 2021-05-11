@@ -41,33 +41,33 @@ public:
 
 	auto configure(const configuration& config) -> void {
 		m_verbose = config.verbose;
+		m_print_config = config.print_config;
 		m_print_assembly = config.print_assembly;
 		m_print_cfg = config.print_cfg;
 		m_print_result = config.print_result;
+		m_print_stats = config.print_stats;
 		m_instruction_pattern.assign(std::string{config.instruction_pattern});
 		const auto seed = configure_seed(config);
 		configure_junk_length_distribution(config);
 		configure_interval_distribution(config);
 		configure_predicates(config);
-		if (m_verbose) {
+		if (m_print_config || m_verbose) {
 			print_configuration(config, seed);
 		}
 	}
 
-	[[nodiscard]] auto apply_predicates(std::string_view assembly) -> std::string {
+	[[nodiscard]] auto apply_predicates(std::string_view filename, std::string_view assembly) -> std::string {
 		auto result = std::string{};
 		if (m_predicates.empty()) {
-			if (m_verbose) {
-				util::println("No predicates to apply.");
-			}
+			util::println("Warning: No predicates to apply.");
 			result = assembly;
 		} else {
 			const auto cfg = control_flow_graph::liveness_analyzed(assembly, m_assembler, m_disassembler);
 			if (m_print_assembly || m_verbose) {
-				print_assembly(assembly);
+				print_assembly(filename, assembly);
 			}
 			if (m_print_cfg || m_verbose) {
-				print_control_flow_graph(cfg);
+				print_control_flow_graph(filename, cfg);
 			}
 
 			auto stream = std::ostringstream{};
@@ -107,7 +107,10 @@ public:
 			stream << assembly.substr(assembly_rest);
 			result = stream.str();
 			if (m_print_result || m_verbose) {
-				print_result(result, predicate_count);
+				print_result(filename, result);
+			}
+			if (m_print_stats || m_verbose) {
+				print_stats(filename, predicate_count);
 			}
 		}
 		return result;
@@ -273,32 +276,44 @@ private:
 		std::bitset<disassembler::flag_count> m_required_flags{};
 	};
 
-	static auto print_assembly(std::string_view assembly) -> void {
+	static auto print_assembly(std::string_view filename, std::string_view assembly) -> void {
+		// clang-format off
 		util::println(
 			"===================================================================\n"
-			"ASSEMBLY\n"
+			"ASSEMBLY for ", filename, "\n"
 			"===================================================================\n",
-			assembly,
-			"\n");
+			assembly, "\n");
+		// clang-format on
 	}
 
-	static auto print_control_flow_graph(const control_flow_graph& cfg) -> void {
+	static auto print_control_flow_graph(std::string_view filename, const control_flow_graph& cfg) -> void {
+		// clang-format off
 		util::println(
 			"===================================================================\n"
-			"CONTROL FLOW GRAPH\n"
+			"CONTROL FLOW GRAPH for ", filename, "\n"
 			"===================================================================\n",
 			cfg);
+		// clang-format on
 	}
 
-	static auto print_result(std::string_view assembly, std::size_t predicate_count) -> void {
+	static auto print_result(std::string_view filename, std::string_view assembly) -> void {
+		// clang-format off
 		util::println(
 			"===================================================================\n"
-			"RESULT\n"
-			"===================================================================\n"
-			"Predicates inserted: ",
-			predicate_count,
-			"\n",
+			"RESULT for ", filename, "\n"
+			"===================================================================\n",
 			assembly);
+		// clang-format on
+	}
+
+	static auto print_stats(std::string_view filename, std::size_t predicate_count) -> void {
+		// clang-format off
+		util::println(
+			"===================================================================\n"
+			"STATS for ", filename, "\n"
+			"===================================================================\n"
+			"Predicates inserted: ", predicate_count, "\n");
+		// clang-format on
 	}
 
 	auto print_configuration(const configuration& config, std::mt19937::result_type seed) const -> void {
@@ -514,9 +529,11 @@ private:
 	std::discrete_distribution<std::size_t> m_predicate_discrete{};
 	std::vector<predicate> m_predicates{};
 	bool m_verbose = false;
+	bool m_print_config = false;
 	bool m_print_assembly = false;
 	bool m_print_cfg = false;
 	bool m_print_result = false;
+	bool m_print_stats = false;
 };
 
 } // namespace desync
