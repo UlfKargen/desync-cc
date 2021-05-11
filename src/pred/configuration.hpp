@@ -60,6 +60,9 @@ struct configuration final {
 	std::optional<std::size_t> seed{};
 	std::string base_dir{"./"};
 	bool verbose = false;
+	bool print_assembly = false;
+	bool print_cfg = false;
+	bool print_result = false;
 	bool dry_run = false;
 
 	auto parse_string(std::string_view config_string) -> void {
@@ -86,6 +89,36 @@ private:
 						config.verbose = false;
 					} else {
 						throw error{"Invalid verbosity setting \"", value, "\""};
+					}
+				}},
+			{"print_assembly",
+				[](configuration& config, std::string_view value) -> void {
+					if (value == "true") {
+						config.print_assembly = true;
+					} else if (value == "false") {
+						config.print_assembly = false;
+					} else {
+						throw error{"Invalid print assembly setting \"", value, "\""};
+					}
+				}},
+			{"print_cfg",
+				[](configuration& config, std::string_view value) -> void {
+					if (value == "true") {
+						config.print_cfg = true;
+					} else if (value == "false") {
+						config.print_cfg = false;
+					} else {
+						throw error{"Invalid print cfg setting \"", value, "\""};
+					}
+				}},
+			{"print_result",
+				[](configuration& config, std::string_view value) -> void {
+					if (value == "true") {
+						config.print_result = true;
+					} else if (value == "false") {
+						config.print_result = false;
+					} else {
+						throw error{"Invalid print assembly setting \"", value, "\""};
 					}
 				}},
 			{"dry_run",
