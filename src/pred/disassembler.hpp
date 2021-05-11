@@ -131,7 +131,7 @@ public:
 		return false;
 	}
 
-	[[nodiscard]] static auto registers_8bit() -> std::bitset<register_count> {
+	[[nodiscard]] static auto general_registers_8bit() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
 			result[register_index(X86_REG_AH)] = true;
@@ -147,13 +147,55 @@ public:
 		return bits;
 	}
 
-	[[nodiscard]] static auto registers_16bit() -> std::bitset<register_count> {
+	[[nodiscard]] static auto general_registers_16bit() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
 			result[register_index(X86_REG_AX)] = true;
 			result[register_index(X86_REG_BX)] = true;
 			result[register_index(X86_REG_CX)] = true;
 			result[register_index(X86_REG_DX)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto general_registers_32bit() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[register_index(X86_REG_EAX)] = true;
+			result[register_index(X86_REG_EBX)] = true;
+			result[register_index(X86_REG_ECX)] = true;
+			result[register_index(X86_REG_EDX)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto general_registers_64bit() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result[register_index(X86_REG_RAX)] = true;
+			result[register_index(X86_REG_RBX)] = true;
+			result[register_index(X86_REG_RCX)] = true;
+			result[register_index(X86_REG_RDX)] = true;
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_8bit() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result |= general_registers_8bit();
+			return result;
+		}();
+		return bits;
+	}
+
+	[[nodiscard]] static auto registers_16bit() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result |= general_registers_16bit();
 			result[register_index(X86_REG_SI)] = true;
 			result[register_index(X86_REG_DI)] = true;
 			result[register_index(X86_REG_BP)] = true;
@@ -166,10 +208,7 @@ public:
 	[[nodiscard]] static auto registers_32bit() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
-			result[register_index(X86_REG_EAX)] = true;
-			result[register_index(X86_REG_EBX)] = true;
-			result[register_index(X86_REG_ECX)] = true;
-			result[register_index(X86_REG_EDX)] = true;
+			result |= general_registers_32bit();
 			result[register_index(X86_REG_ESI)] = true;
 			result[register_index(X86_REG_EDI)] = true;
 			result[register_index(X86_REG_EBP)] = true;
@@ -182,10 +221,7 @@ public:
 	[[nodiscard]] static auto registers_64bit() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
-			result[register_index(X86_REG_RAX)] = true;
-			result[register_index(X86_REG_RBX)] = true;
-			result[register_index(X86_REG_RCX)] = true;
-			result[register_index(X86_REG_RDX)] = true;
+			result |= general_registers_64bit();
 			result[register_index(X86_REG_RSI)] = true;
 			result[register_index(X86_REG_RDI)] = true;
 			result[register_index(X86_REG_RBP)] = true;
@@ -510,10 +546,10 @@ public:
 		result.flags_written[flag_index(flag::NT)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_NT | X86_EFLAGS_RESET_NT)) != 0;
 		result.flags_written[flag_index(flag::RF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_RF | X86_EFLAGS_RESET_RF)) != 0;
 
-		result.flags_read[flag_index(flag::C0)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_UNDEFINED_C0 | X86_FPU_FLAGS_TEST_C0)) != 0;
-		result.flags_read[flag_index(flag::C1)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_UNDEFINED_C1 | X86_FPU_FLAGS_TEST_C1)) != 0;
-		result.flags_read[flag_index(flag::C2)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_UNDEFINED_C2 | X86_FPU_FLAGS_TEST_C2)) != 0;
-		result.flags_read[flag_index(flag::C3)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_UNDEFINED_C3 | X86_FPU_FLAGS_TEST_C3)) != 0;
+		result.flags_read[flag_index(flag::C0)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_TEST_C0 | X86_FPU_FLAGS_UNDEFINED_C0)) != 0;
+		result.flags_read[flag_index(flag::C1)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_TEST_C1 | X86_FPU_FLAGS_UNDEFINED_C1)) != 0;
+		result.flags_read[flag_index(flag::C2)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_TEST_C2 | X86_FPU_FLAGS_UNDEFINED_C2)) != 0;
+		result.flags_read[flag_index(flag::C3)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_TEST_C3 | X86_FPU_FLAGS_UNDEFINED_C3)) != 0;
 
 		result.flags_written[flag_index(flag::C0)] = (info.detail->x86.fpu_flags &
 														 (X86_FPU_FLAGS_MODIFY_C0 | X86_FPU_FLAGS_RESET_C0 | X86_FPU_FLAGS_SET_C0 | X86_FPU_FLAGS_UNDEFINED_C0)) != 0;
@@ -523,6 +559,7 @@ public:
 														 (X86_FPU_FLAGS_MODIFY_C2 | X86_FPU_FLAGS_RESET_C2 | X86_FPU_FLAGS_SET_C2 | X86_FPU_FLAGS_UNDEFINED_C2)) != 0;
 		result.flags_written[flag_index(flag::C3)] = (info.detail->x86.fpu_flags &
 														 (X86_FPU_FLAGS_MODIFY_C3 | X86_FPU_FLAGS_RESET_C3 | X86_FPU_FLAGS_SET_C3 | X86_FPU_FLAGS_UNDEFINED_C3)) != 0;
+
 		return result;
 	}
 
