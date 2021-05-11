@@ -534,16 +534,22 @@ public:
 		result.flags_read[flag_index(flag::NT)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_NT)) != 0;
 		result.flags_read[flag_index(flag::RF)] = (info.detail->x86.eflags & (X86_EFLAGS_TEST_RF)) != 0;
 
-		result.flags_written[flag_index(flag::CF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_CF | X86_EFLAGS_RESET_CF | X86_EFLAGS_SET_CF | X86_EFLAGS_UNDEFINED_CF)) != 0;
-		result.flags_written[flag_index(flag::PF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_PF | X86_EFLAGS_RESET_PF | X86_EFLAGS_SET_PF | X86_EFLAGS_UNDEFINED_PF)) != 0;
-		result.flags_written[flag_index(flag::AF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_AF | X86_EFLAGS_RESET_AF | X86_EFLAGS_SET_AF | X86_EFLAGS_UNDEFINED_AF)) != 0;
-		result.flags_written[flag_index(flag::ZF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_ZF | X86_EFLAGS_RESET_ZF | X86_EFLAGS_SET_ZF | X86_EFLAGS_UNDEFINED_ZF)) != 0;
-		result.flags_written[flag_index(flag::SF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_SF | X86_EFLAGS_RESET_SF | X86_EFLAGS_SET_SF | X86_EFLAGS_UNDEFINED_SF)) != 0;
-		result.flags_written[flag_index(flag::TF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_TF | X86_EFLAGS_RESET_TF)) != 0;
-		result.flags_written[flag_index(flag::IF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_IF | X86_EFLAGS_RESET_IF | X86_EFLAGS_SET_IF)) != 0;
-		result.flags_written[flag_index(flag::DF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_DF | X86_EFLAGS_RESET_DF | X86_EFLAGS_SET_DF)) != 0;
-		result.flags_written[flag_index(flag::OF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_OF | X86_EFLAGS_RESET_OF | X86_EFLAGS_SET_OF | X86_EFLAGS_UNDEFINED_OF)) != 0;
-		result.flags_written[flag_index(flag::NT)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_NT | X86_EFLAGS_RESET_NT)) != 0;
+		result.flags_written[flag_index(flag::CF)] = (info.detail->x86.eflags &
+														 (X86_EFLAGS_MODIFY_CF | X86_EFLAGS_RESET_CF | X86_EFLAGS_PRIOR_CF | X86_EFLAGS_SET_CF | X86_EFLAGS_UNDEFINED_CF)) != 0;
+		result.flags_written[flag_index(flag::PF)] = (info.detail->x86.eflags &
+														 (X86_EFLAGS_MODIFY_PF | X86_EFLAGS_RESET_PF | X86_EFLAGS_PRIOR_PF | X86_EFLAGS_SET_PF | X86_EFLAGS_UNDEFINED_PF)) != 0;
+		result.flags_written[flag_index(flag::AF)] = (info.detail->x86.eflags &
+														 (X86_EFLAGS_MODIFY_AF | X86_EFLAGS_RESET_AF | X86_EFLAGS_PRIOR_AF | X86_EFLAGS_SET_AF | X86_EFLAGS_UNDEFINED_AF)) != 0;
+		result.flags_written[flag_index(flag::ZF)] = (info.detail->x86.eflags &
+														 (X86_EFLAGS_MODIFY_ZF | X86_EFLAGS_RESET_ZF | X86_EFLAGS_PRIOR_ZF | X86_EFLAGS_SET_ZF | X86_EFLAGS_UNDEFINED_ZF)) != 0;
+		result.flags_written[flag_index(flag::SF)] = (info.detail->x86.eflags &
+														 (X86_EFLAGS_MODIFY_SF | X86_EFLAGS_RESET_SF | X86_EFLAGS_PRIOR_SF | X86_EFLAGS_SET_SF | X86_EFLAGS_UNDEFINED_SF)) != 0;
+		result.flags_written[flag_index(flag::TF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_TF | X86_EFLAGS_RESET_TF | X86_EFLAGS_PRIOR_TF)) != 0;
+		result.flags_written[flag_index(flag::IF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_IF | X86_EFLAGS_RESET_IF | X86_EFLAGS_PRIOR_IF | X86_EFLAGS_SET_IF)) != 0;
+		result.flags_written[flag_index(flag::DF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_DF | X86_EFLAGS_RESET_DF | X86_EFLAGS_PRIOR_DF | X86_EFLAGS_SET_DF)) != 0;
+		result.flags_written[flag_index(flag::OF)] = (info.detail->x86.eflags &
+														 (X86_EFLAGS_MODIFY_OF | X86_EFLAGS_RESET_OF | X86_EFLAGS_PRIOR_OF | X86_EFLAGS_SET_OF | X86_EFLAGS_UNDEFINED_OF)) != 0;
+		result.flags_written[flag_index(flag::NT)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_NT | X86_EFLAGS_RESET_NT | X86_EFLAGS_PRIOR_NT)) != 0;
 		result.flags_written[flag_index(flag::RF)] = (info.detail->x86.eflags & (X86_EFLAGS_MODIFY_RF | X86_EFLAGS_RESET_RF)) != 0;
 
 		result.flags_read[flag_index(flag::C0)] = (info.detail->x86.fpu_flags & (X86_FPU_FLAGS_TEST_C0 | X86_FPU_FLAGS_UNDEFINED_C0)) != 0;
