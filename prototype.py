@@ -10,7 +10,8 @@ def create_predicate(desync_count, num_junk_bytes, junk_bytes):
 	"""
 	strnum = str(desync_count)	
 	junk_strnum = str(num_junk_bytes)
-	return '\txorl\t%eax,\t%eax\n\tcmpl\t%eax,\t%eax\n\tje\t.LDESYNC' \
+	#'\txorl\t%eax,\t%eax\n
+	return '\txor\t%r11,\t%r11\n\ttest\t%r11,\t%r11\n\tje\t.LDESYNC' \
 			+ strnum + '\ndesyncpoint' + strnum + '_' + junk_strnum \
 			+ ':\n' + junk_bytes + '.LDESYNC' + strnum + ':\n'
 	
