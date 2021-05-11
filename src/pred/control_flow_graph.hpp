@@ -224,6 +224,8 @@ private:
 			block.live_registers.set();
 			block.live_flags.set();
 		} else {
+			block.live_registers.reset();
+			block.live_flags.reset();
 			for (auto* const successor : block.successors) {
 				if (successor) {
 					block.live_registers |= successor->live_registers;
