@@ -23,3 +23,7 @@ predicate movq_jz(reg_a: r64) {
 predicate test(reg_a: r32) {
     movl $0, %reg_a
 }
+
+predicate jump_only() {
+    jmp DESYNC
+}
