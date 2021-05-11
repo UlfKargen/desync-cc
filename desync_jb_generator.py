@@ -2,6 +2,7 @@ import struct
 import sys
 import argparse
 import random
+import math
 import datetime
 from itertools import combinations
 from capstone import *
@@ -11,6 +12,7 @@ from elftools.elf.elffile import ELFFile
 Global boolean used for enabling debug info.
 """
 PRINT_DEBUG_INFO = False
+PRINT_BENCHMARK_INFO = True
 
 
 def print_disasm_info(instr_list):
@@ -36,7 +38,8 @@ def get_disasm_length(instr_list):
 		last_instr = instr_list[-1]
 		disasm_length = last_instr.address + last_instr.size		
 	else:
-		print('Error: No bytes correctly disassembled :(')		
+		if PRINT_DEBUG_INFO:
+			print('Error: No bytes correctly disassembled :(')		
 	return disasm_length		
 
 	
@@ -149,7 +152,7 @@ def get_desync_list(symtab):
 	"""
 	Desyncpoints must be handled in descending order.
 	"""
-	desync_list.sort(reverse=True)			
+	desync_list.sort(key = lambda x: x[:-2], reverse=True)			
 	return desync_list
 	
 	
@@ -183,6 +186,7 @@ def main():
 	"""
 	main_start_time = datetime.datetime.now()
 	
+	
 	"""
 	Retrieve the arguments, namely the name of the binary that is to be
 	desynchronized, and a flag -v (--verbose) used for debugging info.
@@ -203,6 +207,20 @@ def main():
 	"""
 	TRIES = 1000
 	READ_LENGTH = 50
+	
+	"""
+	Benchmark variables.
+	"""
+	desynced = 0
+	undesynced = 0
+	
+	max_symbol_loop_time = 0
+	min_symbol_loop_time = math.inf
+	total_symbol_loop_time = 0
+	
+	max_symbol_loops = 0
+	min_symbol_loops = math.inf
+	total_symbol_loops = 0
 
 	with open(binary, 'r+b') as f:
 		elf = ELFFile(f)
@@ -216,7 +234,6 @@ def main():
 			"""
 			start_time = datetime.datetime.now()
 			loop_count = 0
-			
 			
 			"""
 			Extract a code snippet of length READ_LENGTH.
@@ -281,23 +298,39 @@ def main():
 			Write the changes to the file.			
 			"""
 			if junk_bytes:
-				print('**********\n Success for symbol {} \n**********\n'.format(symbol))				
+				desynced += 1
+				if PRINT_DEBUG_INFO:
+					print('**********\n Success for symbol {} \n**********\n'.format(symbol))				
 				i = 1		
 				for junk_byte in reversed(junk_bytes):
 					f.seek(sym_offsets[symbol]+JUNK_BYTE_SLOTS-i)
 					f.write(bytes([junk_byte]))		
 					i += 1
 			else:
-				print('**********\n Failure for symbol {} \n ********** '.format(symbol))
-				print('No suitable junk bytes found')
+				undesynced += 1
+				if PRINT_DEBUG_INFO:
+					print('**********\n Failure for symbol {} \n ********** '.format(symbol))
+					print('No suitable junk bytes found')
+
+			if PRINT_BENCHMARK_INFO:				
+				end_time = datetime.datetime.now() 
+				exec_time = (end_time - start_time).microseconds / 1000
+				
+				if exec_time > max_symbol_loop_time:
+					max_symbol_loop_time = exec_time
+				if exec_time < min_symbol_loop_time:	
+					min_symbol_loop_time = exec_time
+				total_symbol_loop_time += exec_time					
+				
+				if loop_count > max_symbol_loops:
+					max_symbol_loops = loop_count
+				if loop_count < min_symbol_loops:
+					min_symbol_loops = loop_count
+				total_symbol_loops += loop_count
 			
-			"""
-			Used for benchmark: End of symbol loop
-			"""
-			end_time = datetime.datetime.now() 
-			exec_time = end_time - start_time
-			print('--- Execution time for desynchronization: {}---'.format(exec_time))
-			print('--- Loops needed: {} ---\n'.format(loop_count))
+			if PRINT_DEBUG_INFO:
+				print('--- Execution time for desynchronization: {}---'.format(exec_time))
+				print('--- Loops needed: {} ---\n'.format(loop_count))
 			
 		f.close()
 	
@@ -305,10 +338,24 @@ def main():
 	Used for benchmark: End of main()
 	"""
 	main_end_time = datetime.datetime.now()
-	main_exec_time = main_end_time - main_start_time	
-	print('--- Total execution time: {} ---\n'.format(main_exec_time))
-									
+	main_exec_time = (main_end_time - main_start_time).seconds
+
+	
+	if PRINT_BENCHMARK_INFO:
+		print('\n--- BENCHMARK RESULTS ---\n')
 		
+		print('Number of successful desynchronizations: {}'.format(desynced))
+		print('Number of unsuccessful desynchronizations: {}\n'.format(undesynced))
+		
+		print('Total execution time (s): {}\n'.format(main_exec_time))
+		
+		print('Maximum desynchronization loop time (ms): {}'.format(max_symbol_loop_time))
+		print('Minimum desynchronization loop time (ms): {}'.format(min_symbol_loop_time))
+		print('Average desynchronization loop time (ms): {:.3f}\n'.format(total_symbol_loop_time / len(desync_list)))
+		
+		print('Maximum amount of loops needed to desynchronize: {}'.format(max_symbol_loops))
+		print('Minimum amount of loops needed to desynchronize: {}'.format(min_symbol_loops))
+		print('Average amount of loops needed to desynchronize: {:.3f}\n'.format(total_symbol_loops / len(desync_list)))
 
 if __name__ == '__main__':
 	main()
