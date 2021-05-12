@@ -15,6 +15,7 @@
 #include <pred/configuration.hpp>      // desync::configuration
 #include <pred/control_flow_graph.hpp> // desync::control_flow_graph
 #include <pred/disassembler.hpp>       // desync::disassembler
+#include <pred/logger.hpp>             // desync::logger
 #include <pred/predicate_parser.hpp>   // desync::predicate_parser
 #include <random>                      // std::mt19937, std::random_device, std::..._distribution
 #include <regex>                       // std::regex, std::regex_match
@@ -25,7 +26,6 @@
 #include <string_view>                 // std::string_view
 #include <unordered_map>               // std::unordered_map
 #include <util/file.hpp>               // desync::util::read_file
-#include <util/print.hpp>              // desync::util::println
 #include <util/string.hpp>             // desync::util::concat
 #include <utility>                     // std::move
 #include <vector>                      // std::vector
@@ -40,6 +40,11 @@ public:
 	};
 
 	auto configure(const configuration& config) -> void {
+		if (!config.log_file.empty()) {
+			auto filepath = config.base_dir;
+			filepath.append(config.log_file);
+			m_logger.open(filepath);
+		}
 		m_verbose = config.verbose;
 		m_print_config = config.print_config;
 		m_print_assembly = config.print_assembly;
@@ -59,7 +64,7 @@ public:
 	[[nodiscard]] auto apply_predicates(std::string_view filename, std::string_view assembly) -> std::string {
 		auto result = std::string{};
 		if (m_predicates.empty()) {
-			util::println("Warning: No predicates to apply.");
+			m_logger.writeln("Warning: No predicates to apply.");
 			result = assembly;
 		} else {
 			const auto cfg = control_flow_graph::liveness_analyzed(assembly, m_assembler, m_disassembler);
@@ -110,7 +115,7 @@ public:
 				print_result(filename, result);
 			}
 			if (m_print_stats || m_verbose) {
-				print_stats(filename, predicate_count);
+				print_stats(filename, instructions.size(), predicate_count);
 			}
 		}
 		return result;
@@ -276,19 +281,19 @@ private:
 		std::bitset<disassembler::flag_count> m_required_flags{};
 	};
 
-	static auto print_assembly(std::string_view filename, std::string_view assembly) -> void {
+	auto print_assembly(std::string_view filename, std::string_view assembly) const -> void {
 		// clang-format off
-		util::println(
+		m_logger.writeln(
 			"===================================================================\n"
 			"ASSEMBLY for ", filename, "\n"
 			"===================================================================\n",
-			assembly, "\n");
+			assembly);
 		// clang-format on
 	}
 
-	static auto print_control_flow_graph(std::string_view filename, const control_flow_graph& cfg) -> void {
+	auto print_control_flow_graph(std::string_view filename, const control_flow_graph& cfg) const -> void {
 		// clang-format off
-		util::println(
+		m_logger.writeln(
 			"===================================================================\n"
 			"CONTROL FLOW GRAPH for ", filename, "\n"
 			"===================================================================\n",
@@ -296,9 +301,9 @@ private:
 		// clang-format on
 	}
 
-	static auto print_result(std::string_view filename, std::string_view assembly) -> void {
+	auto print_result(std::string_view filename, std::string_view assembly) const -> void {
 		// clang-format off
-		util::println(
+		m_logger.writeln(
 			"===================================================================\n"
 			"RESULT for ", filename, "\n"
 			"===================================================================\n",
@@ -306,19 +311,20 @@ private:
 		// clang-format on
 	}
 
-	static auto print_stats(std::string_view filename, std::size_t predicate_count) -> void {
+	auto print_stats(std::string_view filename, std::size_t instruction_count, std::size_t predicate_count) const -> void {
 		// clang-format off
-		util::println(
+		m_logger.writeln(
 			"===================================================================\n"
 			"STATS for ", filename, "\n"
 			"===================================================================\n"
-			"Predicates inserted: ", predicate_count, "\n");
+			"Instructions: ", instruction_count, "\n"
+			"Predicates inserted: ", predicate_count);
 		// clang-format on
 	}
 
 	auto print_configuration(const configuration& config, std::mt19937::result_type seed) const -> void {
 		// clang-format off
-		util::println(
+		m_logger.writeln(
 			"===================================================================\n"
 			"CONFIGURATION\n"
 			"===================================================================\n"
@@ -326,18 +332,18 @@ private:
 			"instruction_pattern ", config.instruction_pattern);
 		switch (m_junk_length_distribution) {
 			case configuration::junk_length_distribution_type::constant:
-				util::println(
+				m_logger.writeln(
 					"junk_length_distribution constant\n"
 					"junk_length ", m_junk_length_constant);
 				break;
 			case configuration::junk_length_distribution_type::uniform:
-				util::println(
+				m_logger.writeln(
 					"junk_length_distribution uniform\n"
 					"junk_length_min ", m_junk_length_uniform.a(), "\n"
 					"junk_length_max ", m_junk_length_uniform.b());
 				break;
 			case configuration::junk_length_distribution_type::normal:
-				util::println(
+				m_logger.writeln(
 					"junk_length_distribution normal\n"
 					"junk_length_mean ", m_junk_length_normal.mean(), "\n"
 					"junk_length_stddev ", m_junk_length_normal.stddev());
@@ -345,44 +351,44 @@ private:
 		}
 		switch (m_interval_distribution) {
 			case configuration::interval_distribution_type::constant:
-				util::println(
+				m_logger.writeln(
 					"interval_distribution constant\n"
 					"interval ", m_interval_constant);
 				break;
 			case configuration::interval_distribution_type::uniform:
-				util::println(
+				m_logger.writeln(
 					"interval_distribution uniform\n"
 					"interval_min ", m_interval_uniform.a(), "\n"
 					"interval_max ", m_interval_uniform.b());
 				break;
 			case configuration::interval_distribution_type::normal:
-				util::println(
+				m_logger.writeln(
 					"interval_distribution normal\n"
 					"interval_mean ", m_interval_normal.mean(), "\n"
 					"interval_stddev ", m_interval_normal.stddev());
 				break;
 		}
 		for (const auto& predicate_file : config.predicate_files) {
-			util::println("predicate_file ", predicate_file);
+			m_logger.writeln("predicate_file ", predicate_file);
 		}
-		util::println("predicate_pattern ", config.predicate_pattern);
+		m_logger.writeln("predicate_pattern ", config.predicate_pattern);
 		switch (m_predicate_distribution) {
 			case configuration::predicate_distribution_type::uniform:
-				util::println("predicate_distribution uniform");
+				m_logger.writeln("predicate_distribution uniform");
 				break;
 			case configuration::predicate_distribution_type::discrete:
-				util::println("predicate_distribution discrete");
+				m_logger.writeln("predicate_distribution discrete");
 				break;
 		}
 		for (const auto& [name, weight] : config.predicate_weights) {
-			util::println("predicate_weight ", name, " ", weight);
+			m_logger.writeln("predicate_weight ", name, " ", weight);
 		}
-		util::println(
+		m_logger.writeln(
 			"===================================================================\n"
 			"PREDICATES\n"
 			"===================================================================");
 		for (const auto& predicate : m_predicates) {
-			util::println("predicate ", predicate.name());
+			m_logger.writeln("predicate ", predicate.name());
 		}
 		// clang-format on
 	}
@@ -512,6 +518,7 @@ private:
 		return std::size_t{};
 	}
 
+	desync::logger m_logger{};
 	desync::assembler m_assembler{};
 	desync::disassembler m_disassembler{};
 	std::mt19937 m_random_number_generator{};

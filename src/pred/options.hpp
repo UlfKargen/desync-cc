@@ -21,7 +21,8 @@ struct options final {
   -v --verbose              Print more information while running.
   -d --dry-run				Don't write any file changes.
   -c --config-string <arg>  Specify configuration string to use.
-  -f --config-file <arg>    Specify configuration file to read and use.)";
+  -f --config-file <arg>    Specify configuration file to read and use.
+  -l --log-file <arg>		Specify log file to write to.)";
 	}
 
 	[[nodiscard]] static auto from_command_line(int argc, char* argv[]) -> options {
@@ -37,6 +38,7 @@ struct options final {
 	bool dry_run = false;
 	std::string_view config_string{};
 	std::string_view config_file{};
+	std::string_view log_file{};
 
 	auto parse_command_line(int argc, char* argv[]) -> void {
 		auto i = 1;
@@ -66,6 +68,8 @@ struct options final {
 						config_string = read_required_argument("config-string");
 					} else if (long_name == "config-file") {
 						config_file = read_required_argument("config-file");
+					} else if (long_name == "log-file") {
+						log_file = read_required_argument("log-file");
 					} else {
 						throw error{"Unknown option --", long_name};
 					}
@@ -88,6 +92,8 @@ struct options final {
 								break;
 							case 'f':
 								break;
+							case 'l':
+								break;
 							default:
 								throw error{"Unknown option -", name};
 						}
@@ -98,6 +104,9 @@ struct options final {
 							break;
 						case 'f':
 							config_file = read_required_argument("config-file");
+							break;
+						case 'l':
+							log_file = read_required_argument("log-file");
 							break;
 						default:
 							break;

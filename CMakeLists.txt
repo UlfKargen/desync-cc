@@ -21,12 +21,14 @@ add_executable(
 	"src/pred/control_flow_graph.hpp"
 	"src/pred/desynchronizer.hpp"
 	"src/pred/disassembler.hpp"
+	"src/pred/logger.hpp"
 	"src/pred/main.cpp"
 	"src/pred/options.hpp"
 	"src/pred/predicate_parser.hpp"
 	"src/util/file.hpp"
 	"src/util/print.hpp"
 	"src/util/string.hpp"
+	"src/util/time.hpp"
 )
 
 target_include_directories(

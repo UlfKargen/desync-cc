@@ -37,6 +37,7 @@ auto main(int argc, char* argv[]) -> int {
 
 		auto desynchronizer = desync::desynchronizer{};
 		auto config = desync::configuration{};
+		config.log_file = options.log_file;
 		config.verbose = options.verbose;
 		config.dry_run = options.dry_run;
 		if (const auto* const env_config_base_dir = std::getenv("DESYNC_CONFIG_BASE_DIR")) {

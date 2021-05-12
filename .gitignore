@@ -4,6 +4,7 @@ build*/
 bin*/
 logs/
 Testing/
+*.log
 *.out
 CMakeLists.txt.user*
 *.autosave
