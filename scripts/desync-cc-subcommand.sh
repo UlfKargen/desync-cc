@@ -12,11 +12,10 @@ COMMAND_NAME=$(basename "$1")
 # Check which kind of command should be run.
 if [[ "$COMMAND_NAME" = "cc1" ]]; then
     # Run the compiler as normal.
-    
+
     "$@" || exit # Run the compiler.
 elif [[ "$COMMAND_NAME" = "as" ]]; then
     # Run our tool with the assembly filenames given to the assembler command before running the assembler.
-    #echo "Running assembler: $@"
 
     # Extract the assembly filenames from the assembler arguments.
     ASSEMBLY_FILES=()
