@@ -2,12 +2,12 @@
 
 # Make sure the project directory argument is provided.
 if [[ $# -ne 1 ]]; then
-    echo "Usage: desync-test <projectdir>"
+    echo "Usage: desync-retest <projectdir>"
     exit 2
 fi
 
-# Build the project.
-. $(dirname "$0")/desync-build.sh $1
+# Perform setup.
+. $(dirname "$0")/desync-setup.sh $1
 
 # Test the project (run make check/test).
 make -q check
@@ -21,4 +21,4 @@ else
 fi
 
 # Done.
-echo "Desync test done"
+echo "Desync retest done"
