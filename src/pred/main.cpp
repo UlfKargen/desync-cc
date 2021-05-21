@@ -6,11 +6,20 @@
 #include <stdexcept>               // std::exception
 #include <string>                  // std::string
 #include <util/file.hpp>           // desync::util::read_file, desync::util::write_file
-#include <util/print.hpp>          // desync::util::println
-
-using desync::util::println;
 
 namespace {
+
+auto print(const auto&... args) -> void {
+	(std::cerr << ... << args);
+}
+
+auto println(const auto&... args) -> void {
+	print(args..., '\n');
+}
+
+auto print_version() -> void {
+	println("desync-pred version 0.0.1");
+}
 
 auto print_usage() -> void {
 	println("Usage: desync-pred [options...] <file...>");
@@ -22,7 +31,7 @@ auto main(int argc, char* argv[]) -> int {
 	try {
 		const auto options = desync::options::from_command_line(argc, argv);
 		if (options.help || options.version) {
-			println("desync-pred version 0.0.1");
+			print_version();
 			if (options.help) {
 				print_usage();
 				println(desync::options::usage());

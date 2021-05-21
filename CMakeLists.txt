@@ -26,7 +26,6 @@ add_executable(
 	"src/pred/options.hpp"
 	"src/pred/predicate_parser.hpp"
 	"src/util/file.hpp"
-	"src/util/print.hpp"
 	"src/util/string.hpp"
 	"src/util/time.hpp"
 )

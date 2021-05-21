@@ -41,9 +41,7 @@ public:
 
 	auto configure(const configuration& config) -> void {
 		if (!config.log_file.empty()) {
-			auto filepath = config.base_dir;
-			filepath.append(config.log_file);
-			m_logger.open(filepath);
+			m_logger.open(config.base_dir + config.log_file);
 		}
 		m_verbose = config.verbose;
 		m_print_config = config.print_config;
