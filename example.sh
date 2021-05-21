@@ -1,3 +1,3 @@
 #!/bin/bash
 
-scripts/desync-test.sh ~/Downloads/coreutils
+scripts/desync-test.sh test/basic1

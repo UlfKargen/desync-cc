@@ -8,18 +8,6 @@ predicate xorq_jz(reg_a: r64) {
     jz DESYNC
 }
 
-// TODO: Fix
-predicate movl_jz(reg_a: r32) {
-    movl $0, %reg_a
-    jz DESYNC
-}
-
-// TODO: Fix
-predicate movq_jz(reg_a: r64) {
-    movq $0, %reg_a
-    jz DESYNC
-}
-
 predicate test(reg_a: r32) {
     movl $0, %reg_a
 }
