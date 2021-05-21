@@ -21,7 +21,7 @@ namespace util {
 	localtime_r(&t, &local_time);
 #endif
 
-	static constexpr auto max_size = std::size_t{64};
+	static constexpr auto max_size = std::size_t{128};
 	auto result = std::string(max_size, '\0');
 	if (const auto count = std::strftime(result.data(), result.size(), format, &local_time)) {
 		result.erase(count, std::string::npos);
