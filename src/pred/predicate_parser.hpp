@@ -105,6 +105,10 @@ private:
 			if (at_end() || (peek() != ',' && peek() != ')')) {
 				throw make_error("Expected parameter separator ',' or ')'");
 			}
+			if (peek() == ',') {
+				advance();
+				skip_whitespace();
+			}
 		}
 		return result;
 	}

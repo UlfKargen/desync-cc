@@ -1,0 +1,7 @@
+predicate two_regs(reg_a: r32, reg_b: r32) {
+    movl $10, %reg_a
+    movl $11, %reg_b
+    inc %reg_a
+    xorl %reg_a, %reg_b
+    jz DESYNC
+}
