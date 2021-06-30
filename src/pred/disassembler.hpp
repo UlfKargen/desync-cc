@@ -120,6 +120,11 @@ public:
 		return info.id == X86_INS_JMP || info.id == X86_INS_LJMP || info.id == X86_INS_RET || info.id == X86_INS_RETF || info.id == X86_INS_RETFQ;
 	}
 
+	[[nodiscard]] static auto has_operand(const cs_insn& info) -> bool {
+		assert(info.detail);
+		return info.detail->x86.op_count > 0;
+	}
+
 	[[nodiscard]] static auto has_immediate_operand(const cs_insn& info) -> bool {
 		assert(info.detail);
 		for (auto op_index = std::uint8_t{0}; op_index < info.detail->x86.op_count; ++op_index) {

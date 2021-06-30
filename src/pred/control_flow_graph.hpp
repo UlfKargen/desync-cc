@@ -161,21 +161,27 @@ public:
 						block->next = std::move(new_block);
 					}
 					// Add the branch target as a successor.
-					if (disassembler::has_immediate_operand(info)) {
-						// Search for matching symbols.
-						const auto arguments = assembly_parser::parse_arguments(instruction.string);
-						if (arguments.size() == 2) {
-							if (const auto it = m_symbol_table.find(arguments[1].string); it != m_symbol_table.end()) {
-								auto* const symbol = it->second;
-								symbol->predecessors.push_back(block);
-								block->successors.push_back(symbol);
+					if (disassembler::has_operand(info)){
+						if (disassembler::has_immediate_operand(info)) {
+							// Search for matching symbols.
+							const auto arguments = assembly_parser::parse_arguments(instruction.string);
+							if (arguments.size() == 2) {
+								if (const auto it = m_symbol_table.find(arguments[1].string); it != m_symbol_table.end()) {
+									auto* const symbol = it->second;
+									symbol->predecessors.push_back(block);
+									block->successors.push_back(symbol);
+								} else {
+									block->successors.push_back(nullptr); // Unknown branch target (e.g. library function).
+								}
 							} else {
-								block->successors.push_back(nullptr); // Unknown branch target (e.g. library function).
+								throw error{"Unknown branch instruction format"};
 							}
-						} else {
-							throw error{"Unknown branch instruction format"};
 						}
-					}
+						else{
+							// The instruction is using some other addressing mode. Assume the target is unknown.
+							block->successors.push_back(nullptr);
+						}
+					}					
 					break;
 				}
 			}
