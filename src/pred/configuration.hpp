@@ -53,10 +53,10 @@ struct configuration final {
 	double junk_length_normal_stddev = 0.0;
 	double interval_normal_mean = static_cast<double>(default_interval);
 	double interval_normal_stddev = 0.0;
-	std::string_view instruction_pattern = ".*";
-	std::string_view predicate_pattern = ".*";
-	std::vector<std::string_view> predicate_files{};
-	std::unordered_map<std::string_view, std::size_t> predicate_weights{};
+	std::string instruction_pattern = ".*";
+	std::string predicate_pattern = ".*";
+	std::vector<std::string> predicate_files{};
+	std::unordered_map<std::string, std::size_t> predicate_weights{};
 	std::optional<std::size_t> seed{};
 	std::string log_file{};
 	std::string base_dir{"./"};
@@ -86,7 +86,7 @@ private:
 		static auto table = std::unordered_map<std::string_view, command_handler>{
 			{"log_file",
 				[](configuration& config, std::string_view value) -> void {
-					config.log_file = value;
+					config.log_file = std::string{value};
 				}},
 			{"verbose",
 				[](configuration& config, std::string_view value) -> void {
@@ -232,15 +232,15 @@ private:
 				}},
 			{"instruction_pattern",
 				[](configuration& config, std::string_view value) -> void {
-					config.instruction_pattern = value;
+					config.instruction_pattern = std::string{value};
 				}},
 			{"predicate_file",
 				[](configuration& config, std::string_view value) -> void {
-					config.predicate_files.push_back(value);
+					config.predicate_files.push_back(std::string{value});
 				}},
 			{"predicate_pattern",
 				[](configuration& config, std::string_view value) -> void {
-					config.predicate_pattern = value;
+					config.predicate_pattern = std::string{value};
 				}},
 			{"predicate_distribution",
 				[](configuration& config, std::string_view value) -> void {
@@ -260,7 +260,7 @@ private:
 					}
 					const auto predicate_weight_begin = value.find_first_not_of(" \t", predicate_name.size());
 					const auto predicate_weight = (predicate_weight_begin == std::string_view::npos) ? std::string_view{} : value.substr(predicate_weight_begin);
-					config.predicate_weights[predicate_name] = std::stoul(std::string{predicate_weight});
+					config.predicate_weights[std::string{predicate_name}] = std::stoul(std::string{predicate_weight});
 				}},
 		};
 		return table;

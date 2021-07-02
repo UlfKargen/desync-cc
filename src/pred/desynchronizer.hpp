@@ -49,7 +49,7 @@ public:
 		m_print_cfg = config.print_cfg;
 		m_print_result = config.print_result;
 		m_print_stats = config.print_stats;
-		m_instruction_pattern.assign(std::string{config.instruction_pattern});
+		m_instruction_pattern.assign(config.instruction_pattern);
 		const auto seed = configure_seed(config);
 		configure_junk_length_distribution(config);
 		configure_interval_distribution(config);
@@ -441,7 +441,7 @@ private:
 	}
 
 	auto configure_predicates(const configuration& config) -> void {
-		const auto pattern = std::regex{std::string{config.predicate_pattern}};
+		const auto pattern = std::regex{config.predicate_pattern};
 		auto weights = std::vector<double>{};
 		auto source_files = std::unordered_map<std::string_view, std::string_view>{};
 		for (const auto& predicate_file : config.predicate_files) {
@@ -460,7 +460,7 @@ private:
 					}
 
 					auto& weight = weights.emplace_back(1.0);
-					if (const auto weight_it = config.predicate_weights.find(parsed_predicate.name); weight_it != config.predicate_weights.end()) {
+					if (const auto weight_it = config.predicate_weights.find(std::string{parsed_predicate.name}); weight_it != config.predicate_weights.end()) {
 						weight = weight_it->second;
 					}
 
