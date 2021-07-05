@@ -1,5 +1,3 @@
-import struct
-import sys
 import argparse
 import random
 import math
@@ -12,7 +10,7 @@ from elftools.elf.elffile import ELFFile
 Global boolean used for enabling debug info.
 """
 PRINT_DEBUG_INFO = False
-PRINT_BENCHMARK_INFO = True
+PRINT_BENCHMARK_INFO = False
 
 
 def print_disasm_info(instr_list):
@@ -107,7 +105,7 @@ def find_junk_bytes(pos_single_bytes, len_junk_bytes):
 	
 	
 	
-def get_pos_single_bytes_list():	
+def get_pos_single_bytes_list(instr_file_dir):	
 	"""
 	Create a list with possible starting junk bytes. Single bytes that 
 	work as instructions and prefixes have been removed.
@@ -115,14 +113,14 @@ def get_pos_single_bytes_list():
 	pos_single_bytes = random.sample(range(256), 256)
 	single_byte_instr_list = []
 	instr_prefix_list = []
-	with open('single_byte_instr_list.txt', 'r') as f:
+	with open(instr_file_dir + '/single_byte_instr_list.txt', 'r') as f:
 		byte = f.readline()
 		while byte:
 			byte = byte[:-1]
 			single_byte_instr_list.append(int(byte[2:], 16)) #Cut away the newline
 			byte = f.readline()
 		f.close()	
-	with open('instr_prefix_list.txt', 'r') as f:
+	with open(instr_file_dir + '/instr_prefix_list.txt', 'r') as f:
 		prefix = f.readline()
 		while prefix:
 			prefix = prefix[:-1]
@@ -160,22 +158,21 @@ def get_desync_list(symtab):
 def get_sym_offsets(desync_list, symtab, elf):
 	"""
 	Get the offsets for each desynchronization point.
-	Return: {'desyncpoint', offset}
+	Return: {offset, 'desyncpoint'}
 	"""
-	sym_offsets = {}
+	sym_offsets = {} # the format was reversed to offset -> name since multiple symbols could share name but offsets are unique
 	for symbol in desync_list:
-		syms = symtab.get_symbol_by_name(symbol)		
-		assert(len(syms) == 1)
-		sym = syms[0]
-		sym_VA = sym['st_value']
-		sym_idx = sym['st_shndx']
-		section = elf.get_section(sym_idx)
-		section_offset = section['sh_offset']
-		section_VA = section['sh_addr']
-		sym_offset = sym_VA - section_VA + section_offset
-		sym_offsets[symbol] = sym_offset	
-		if PRINT_DEBUG_INFO:
-			print('Offset for symbol [{}]: 0x{:x}'.format(symbol, sym_offset))
+		syms = symtab.get_symbol_by_name(symbol)
+		for sym in syms:
+			sym_VA = sym['st_value']
+			sym_idx = sym['st_shndx']
+			section = elf.get_section(sym_idx)
+			section_offset = section['sh_offset']
+			section_VA = section['sh_addr']
+			sym_offset = sym_VA - section_VA + section_offset
+			sym_offsets[sym_offset] = symbol	
+			if PRINT_DEBUG_INFO:
+				print('Offset for symbol [{}]: 0x{:x}'.format(symbol, sym_offset))
 	return sym_offsets
 	
 		
@@ -193,10 +190,12 @@ def main():
 	"""
 	parser = argparse.ArgumentParser()
 	parser.add_argument('binary', type = str)
+	parser.add_argument('instr_file_dir', type = str)
 	parser.add_argument('-v', '--verbose', action = 'store_true',
                     help='Enable debug print information')
 	args = parser.parse_args()
 	binary = args.binary
+	instr_file_dir = args.instr_file_dir
 	if args.verbose:
 		PRINT_DEBUG_INFO = True
 	else:
@@ -228,17 +227,18 @@ def main():
 		desync_list = get_desync_list(symtab)
 		sym_offsets = get_sym_offsets(desync_list, symtab, elf)			
 		
-		for symbol in desync_list:			
+		for sym_offset in sym_offsets:			
 			"""
 			Used for benchmark: Start of symbol loop
 			"""
 			start_time = datetime.datetime.now()
 			loop_count = 0
+			symbol = sym_offsets[sym_offset] # name of desync point
 			
 			"""
 			Extract a code snippet of length READ_LENGTH.
 			"""			
-			f.seek(sym_offsets[symbol])
+			f.seek(sym_offset)
 			code = f.read(READ_LENGTH)									
 						
 			"""
@@ -261,9 +261,9 @@ def main():
 			Find suitable junk bytes and insert into file.
 			"""			
 			desync_length = 0
-			pos_single_bytes = get_pos_single_bytes_list()
+			pos_single_bytes = get_pos_single_bytes_list(instr_file_dir)
 			junk_bytes = []
-			JUNK_BYTE_SLOTS = int(symbol[-1])
+			JUNK_BYTE_SLOTS = int(symbol[-1]) #last character in symbol name
 			len_junk_bytes_tried = JUNK_BYTE_SLOTS
 			tries_left = TRIES
 			desynchronized = False			
@@ -303,7 +303,7 @@ def main():
 					print('**********\n Success for symbol {} \n**********\n'.format(symbol))				
 				i = 1		
 				for junk_byte in reversed(junk_bytes):
-					f.seek(sym_offsets[symbol]+JUNK_BYTE_SLOTS-i)
+					f.seek(sym_offset+JUNK_BYTE_SLOTS-i)
 					f.write(bytes([junk_byte]))		
 					i += 1
 			else:
