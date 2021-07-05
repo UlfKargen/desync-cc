@@ -18,6 +18,7 @@ class disassembler final {
 public:
 	static constexpr auto register_count = std::size_t{X86_REG_ENDING - 1};
 	static constexpr auto flag_count = std::size_t{32 + 4};
+	static constexpr auto num_extra_64_registers = std::size_t{X86_REG_R15 - X86_REG_R8 + 1};
 
 	enum class flag : std::size_t {
 		CF = 0,
@@ -147,6 +148,9 @@ public:
 			result[register_index(X86_REG_CL)] = true;
 			result[register_index(X86_REG_DH)] = true;
 			result[register_index(X86_REG_DL)] = true;
+			for (auto i = std::size_t{0}; i < num_extra_64_registers; ++i){
+				result[register_index(X86_REG_R8B) + i] = true;
+			}
 			return result;
 		}();
 		return bits;
@@ -159,6 +163,9 @@ public:
 			result[register_index(X86_REG_BX)] = true;
 			result[register_index(X86_REG_CX)] = true;
 			result[register_index(X86_REG_DX)] = true;
+			for (auto i = std::size_t{0}; i < num_extra_64_registers; ++i){
+				result[register_index(X86_REG_R8W) + i] = true;
+			}
 			return result;
 		}();
 		return bits;
@@ -171,6 +178,9 @@ public:
 			result[register_index(X86_REG_EBX)] = true;
 			result[register_index(X86_REG_ECX)] = true;
 			result[register_index(X86_REG_EDX)] = true;
+			for (auto i = std::size_t{0}; i < num_extra_64_registers; ++i){
+				result[register_index(X86_REG_R8D) + i] = true;
+			}
 			return result;
 		}();
 		return bits;
@@ -183,6 +193,9 @@ public:
 			result[register_index(X86_REG_RBX)] = true;
 			result[register_index(X86_REG_RCX)] = true;
 			result[register_index(X86_REG_RDX)] = true;
+			for (auto i = std::size_t{0}; i < num_extra_64_registers; ++i){
+				result[register_index(X86_REG_R8) + i] = true;
+			}
 			return result;
 		}();
 		return bits;
@@ -332,6 +345,16 @@ public:
 		return bits;
 	}
 
+	[[nodiscard]] static auto registers_r64(std::size_t i) -> std::bitset<register_count> {
+		assert (i < num_extra_64_registers);
+		auto result = std::bitset<register_count>{};
+		result[register_index(X86_REG_R8 + i)] = true;
+		result[register_index(X86_REG_R8D + i)] = true;
+		result[register_index(X86_REG_R8W + i)] = true;
+		result[register_index(X86_REG_R8B + i)] = true;
+		return result;
+	}
+
 	[[nodiscard]] static auto related_registers(std::size_t i) -> std::bitset<register_count> {
 		// clang-format off
 		switch (i) {
@@ -377,6 +400,18 @@ public:
 				return registers_sp();
 		}
 		// clang-format on
+		if (register_index(X86_REG_R8) <= i && i <= register_index(X86_REG_R15)){
+			return registers_r64(register_id(i) - X86_REG_R8);	
+		}
+		if (register_index(X86_REG_R8D) <= i && i <= register_index(X86_REG_R15D)){
+			return registers_r64(register_id(i) - X86_REG_R8D);	
+		}
+		if (register_index(X86_REG_R8W) <= i && i <= register_index(X86_REG_R15W)){
+			return registers_r64(register_id(i) - X86_REG_R8W);	
+		}
+		if (register_index(X86_REG_R8B) <= i && i <= register_index(X86_REG_R15B)){
+			return registers_r64(register_id(i) - X86_REG_R8B);	
+		}
 		auto result = std::bitset<register_count>{};
 		result[i] = true;
 		return result;
@@ -432,6 +467,14 @@ public:
 			registers[register_index(X86_REG_ESP)] ||
 			registers[register_index(X86_REG_RSP)]) {
 			result |= registers_sp();
+		}
+		for (auto i = std::size_t{0}; i < num_extra_64_registers; ++i){
+			if (registers[register_index(X86_REG_R8) + i] ||
+				registers[register_index(X86_REG_R8D) + i] ||
+				registers[register_index(X86_REG_R8W) + i] ||
+				registers[register_index(X86_REG_R8B) + i]) {
+				result |= registers_r64(i);
+			}
 		}
 		// clang-format on
 		return result;
