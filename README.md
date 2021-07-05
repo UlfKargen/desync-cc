@@ -4,7 +4,15 @@ Automatic Disassembly Desynchronization Obfuscator.
 
 ## Prerequisites
 
-The project requires the following packages to build and install:
+Python:
+
+capstone package needs to be installed.
+Can be installed with 
+```sh
+pip install capstone
+```
+
+The C++ project requires the following packages to build and install:
 
 -   CMake 3.12+
 -   GCC 10+
@@ -59,3 +67,17 @@ Then, in the `build` directory, run the following command with super user privil
 ```sh
 cmake --install .
 ```
+
+## running
+
+To build a project using the obfuscator run:
+
+```sh
+DESYNC_CONFIG_FILE=config.cfg scripts/desync-build.sh project_path
+```
+
+To build a project and run tests after: (requres that the project implements test or check in the makefile)
+```sh
+DESYNC_CONFIG_FILE=config.cfg scripts/desync-test.sh project_path
+```
+
