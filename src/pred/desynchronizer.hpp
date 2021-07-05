@@ -65,10 +65,10 @@ public:
 			m_logger.writeln("Warning: No predicates to apply.");
 			result = assembly;
 		} else {
-			const auto cfg = control_flow_graph::liveness_analyzed(assembly, m_assembler, m_disassembler);
 			if (m_print_assembly || m_verbose) {
 				print_assembly(filename, assembly);
 			}
+			const auto cfg = control_flow_graph::liveness_analyzed(assembly, m_assembler, m_disassembler);
 			if (m_print_cfg || m_verbose) {
 				print_control_flow_graph(filename, cfg);
 			}
