@@ -4,10 +4,8 @@ Automatic Disassembly Desynchronization Obfuscator.
 
 ## Prerequisites
 
-Python:
-
-capstone package needs to be installed.
-Can be installed with 
+For the python scripts to run capstone module needs to be installed.
+Can be installed with:
 ```sh
 pip install capstone
 ```
@@ -68,7 +66,7 @@ Then, in the `build` directory, run the following command with super user privil
 cmake --install .
 ```
 
-## running
+## Running
 
 To build a project using the obfuscator run:
 
