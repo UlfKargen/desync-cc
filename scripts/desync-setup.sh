@@ -9,6 +9,9 @@ fi
 # Export current directory as base directory.
 export DESYNC_CONFIG_BASE_DIR="$(pwd)"
 
+# Export path to junk-bytes script
+export DESYNC_JUNK_BYTE_PATH="$(pwd)"
+
 # Save script directory and project directory.
 SCRIPTS_DIR=$(realpath $(dirname "$0"))
 PROJECT_DIR="$1"
@@ -18,6 +21,10 @@ rm -f "$SCRIPTS_DIR/../desync.log"
 
 # Change to given project directory.
 cd "$PROJECT_DIR" || exit
+
+# Export compiler command.
+export DESYNC_CC_COMMAND=gcc
+echo "Using compiler: $DESYNC_COMPILER_COMMAND"
 
 # Export path to configuration filename.
 export DESYNC_CONFIG_FILE="${DESYNC_CONFIG_FILE:-config.cfg}"

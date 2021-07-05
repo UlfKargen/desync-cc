@@ -1,3 +1,3 @@
 #!/bin/bash
 
-echo "Running desync-junk $@"
+python3 "$DESYNC_JUNK_BYTE_PATH/desync_jb_generator.py" $@ $DESYNC_JUNK_BYTE_PATH
