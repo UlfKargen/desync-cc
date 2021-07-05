@@ -1,7 +1,7 @@
 #ifndef DESYNC_DESYNCHRONIZER_H
 #define DESYNC_DESYNCHRONIZER_H
 
-#include <algorithm>                   // std::max
+#include <algorithm>                   // std::max, std::shuffle
 #include <bitset>                      // std::bitset
 #include <cassert>                     // assert
 #include <cmath>                       // std::round
@@ -82,7 +82,7 @@ public:
 				const auto& predicate = m_predicates[generate_predicate()];
 				while (i < instructions.size()) {
 					if (std::regex_match(std::string{instructions[i].string}, m_instruction_pattern)) {
-						if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_disassembler)) {
+						if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_disassembler, &m_random_number_generator)) {
 							const auto assembly_index = instructions[i].string.data() - assembly.data();
 							stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n';
 							assembly_rest = assembly_index;
@@ -194,17 +194,31 @@ private:
 			check_assembly(filename, assembler, disassembler);
 		}
 
+		[[nodiscard]] static auto index_list(){
+			static const auto result = []{
+				auto order = std::array<std::size_t, disassembler::register_count>{};
+				for (auto i = std::size_t{0}; i < disassembler::register_count; ++i) {
+					order[i] = i;
+				}
+				return order;
+			}();
+			return result;
+		}
+
 		[[nodiscard]] auto find_arguments(std::bitset<disassembler::register_count> free_registers, std::bitset<disassembler::flag_count> free_flags,
-			const disassembler& disassembler) const -> std::optional<std::vector<std::string>> {
+			const disassembler& disassembler, std::mt19937* g) const -> std::optional<std::vector<std::string>> {
 			auto result = std::optional<std::vector<std::string>>{};
 			if ((free_flags & m_required_flags) == m_required_flags && free_registers.count() >= m_parameters.size()) {
 				auto& arguments = result.emplace();
 				for (const auto& parameter : m_parameters) {
 					auto found = false;
-					for (auto i = std::size_t{0}; i < free_registers.size(); ++i) {
-						if (free_registers[i] && applicable_registers(parameter)[i]) {
-							arguments.emplace_back(disassembler.register_name(i));
-							free_registers &= ~disassembler::related_registers(i);
+					auto order = predicate::index_list();
+					if (g != nullptr)
+						shuffle (order.begin(), order.end(), *g);
+					for (auto it = order.begin(); it != order.end(); it++) {
+						if (free_registers[*it] && applicable_registers(parameter)[*it]) {
+							arguments.emplace_back(disassembler.register_name(*it));
+							free_registers &= ~disassembler::related_registers(*it);
 							found = true;
 							break;
 						}
@@ -250,7 +264,7 @@ private:
 			free_registers.set();
 			auto free_flags = std::bitset<disassembler::flag_count>{};
 			free_flags.set();
-			const auto arguments = find_arguments(free_registers, free_flags, disassembler);
+			const auto arguments = find_arguments(free_registers, free_flags, disassembler, nullptr);
 			if (!arguments) {
 				throw error{filename, ": Predicate \"", m_name, "\": Failed to find suitable registers for parameters."};
 			}
