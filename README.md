@@ -74,7 +74,7 @@ To build a project using the obfuscator run:
 DESYNC_CONFIG_FILE=config.cfg scripts/desync-build.sh project_path
 ```
 
-To build a project and run tests after: (requres that the project implements test or check in the makefile)
+To build a project and run tests after: (requires that the project implements test or check in the makefile)
 ```sh
 DESYNC_CONFIG_FILE=config.cfg scripts/desync-test.sh project_path
 ```
