@@ -50,6 +50,7 @@ public:
 		m_print_result = config.print_result;
 		m_print_stats = config.print_stats;
 		m_instruction_pattern.assign(config.instruction_pattern);
+		m_debug_cfg = config.debug_cfg;
 		const auto seed = configure_seed(config);
 		configure_junk_length_distribution(config);
 		configure_interval_distribution(config);
@@ -72,48 +73,18 @@ public:
 			if (m_print_cfg || m_verbose) {
 				print_control_flow_graph(filename, cfg);
 			}
-
-			auto stream = std::ostringstream{};
-			auto assembly_rest = std::size_t{0};
-			auto next = std::size_t{0};
-			auto predicate_count = std::size_t{0};
 			const auto& instructions = cfg.instructions();
-			for (auto i = std::size_t{0}; i < instructions.size(); i = next) {
-				const auto& predicate = m_predicates[generate_predicate()];
-				while (i < instructions.size()) {
-					if (std::regex_match(std::string{instructions[i].string}, m_instruction_pattern)) {
-						if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_disassembler, &m_random_number_generator)) {
-							const auto assembly_index = instructions[i].string.data() - assembly.data();
-							stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n';
-							assembly_rest = assembly_index;
-							const auto junk_length = generate_junk_length();
-							const auto junk_label = util::concat("desyncpoint", predicate_count, '_', junk_length);
-							const auto jump_label = util::concat(".Ldesyncjump", predicate_count);
-							++predicate_count;
-							predicate.apply(stream, jump_label, std::span{*arguments});
-							stream << '\n' << junk_label << ":\n";
-							for (auto n = std::size_t{0}; n < junk_length; ++n) {
-								stream << "nop\n";
-							}
-							stream << jump_label << ":\n";
-							break;
-						}
-					}
-					++i;
-				}
-				if (i >= instructions.size()) {
-					break;
-				}
-				next += generate_interval();
-				next = std::max(i, next);
+			if (m_debug_cfg){
+				result = apply_debug_predicate(assembly, instructions);
 			}
-			stream << assembly.substr(assembly_rest);
-			result = stream.str();
+			else{
+				result = apply_predicates_inner(assembly, instructions);
+			}
 			if (m_print_result || m_verbose) {
 				print_result(filename, result);
 			}
 			if (m_print_stats || m_verbose) {
-				print_stats(filename, instructions.size(), predicate_count);
+				print_stats(filename, instructions.size(), m_predicate_count);
 			}
 		}
 		return result;
@@ -122,6 +93,89 @@ public:
 private:
 	static constexpr auto desync_label_name = std::string_view{"DESYNC"};
 	static constexpr auto desync_label_replacement_index = std::numeric_limits<std::size_t>::max();
+
+	[[nodiscard]] auto apply_predicates_inner(std::string_view assembly, const std::span<const control_flow_graph::instruction>& instructions) -> std::string {
+		auto stream = std::ostringstream{};
+		auto assembly_rest = std::size_t{0};
+		auto next = std::size_t{0};
+		m_predicate_count = std::size_t{0};
+		for (auto i = std::size_t{0}; i < instructions.size(); i = next) {
+			const auto& predicate = m_predicates[generate_predicate()];
+			while (i < instructions.size()) {
+				if (std::regex_match(std::string{instructions[i].string}, m_instruction_pattern)) {
+					if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_disassembler, &m_random_number_generator)) {
+						const auto assembly_index = instructions[i].string.data() - assembly.data(); 		// original assembly is used since 
+						stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n'; 	// some assembly is not considered instructions
+						assembly_rest = assembly_index;
+						const auto junk_length = generate_junk_length();
+						// TODO add unique file identifier to symbols
+						const auto junk_label = util::concat("desyncpoint", m_predicate_count, '_', junk_length);
+						const auto jump_label = util::concat(".Ldesyncjump", m_predicate_count);
+						++m_predicate_count;
+						predicate.apply(stream, jump_label, std::span{*arguments});
+						stream << '\n' << junk_label << ":\n";
+						for (auto n = std::size_t{0}; n < junk_length; ++n) {
+							stream << "nop\n";
+						}
+						stream << jump_label << ":\n";
+						break;
+					}
+				}
+				++i;
+			}
+			if (i >= instructions.size()) {
+				break;
+			}
+			next += generate_interval();
+			next = std::max(i, next);
+		}
+		stream << assembly.substr(assembly_rest);
+		return stream.str();
+	}
+
+	[[nodiscard]] auto apply_debug_predicate(std::string_view assembly, const std::span<const control_flow_graph::instruction>& instructions) -> std::string {
+		auto stream = std::ostringstream{};
+		m_predicate_count = std::size_t{0};
+		auto assembly_rest = std::size_t{0};
+		auto regs_8bit = disassembler::general_registers_8bit();
+		auto regs_16bit = disassembler::general_registers_16bit();
+		auto regs_32bit = disassembler::general_registers_32bit();
+		auto regs_64bit = disassembler::general_registers_64bit();
+		for (auto i = std::size_t{0}; i < instructions.size(); ++i) {
+			const auto assembly_index = instructions[i].string.data() - assembly.data();
+			stream << assembly.substr(assembly_rest, assembly_index - assembly_rest);
+			assembly_rest = assembly_index;
+			bool inserted = false;
+			for (auto reg = std::size_t{0}; reg < disassembler::register_count; reg++){
+				if (instructions[i].live_registers.test(reg)) 
+					continue; // register is live, don't use
+				auto reg_name = m_disassembler.register_name(reg);
+				if (regs_8bit.test(reg)){
+					stream << "movb\t$-1, %" << reg_name << "\n\t";
+					inserted = true;
+				}
+				else if (regs_16bit.test(reg)){
+					stream << "movw\t$-1, %" << reg_name << "\n\t";
+					inserted = true;
+				}
+				else if (regs_32bit.test(reg)){
+					stream << "movl\t$-1, %" << reg_name << "\n\t";
+					inserted = true;
+				}
+				else if (regs_64bit.test(reg)){
+					stream << "movq\t$-1, %" << reg_name << "\n\t";
+					inserted = true;
+				}
+				else{
+					continue; //not one of the general registers
+				}
+			}
+			if (inserted)
+				++m_predicate_count;
+		}
+		stream << assembly.substr(assembly_rest);
+		return stream.str();
+	}
 
 	class predicate final {
 	public:
@@ -553,6 +607,9 @@ private:
 	bool m_print_cfg = false;
 	bool m_print_result = false;
 	bool m_print_stats = false;
+	bool m_debug_cfg = false;
+	std::size_t m_predicate_count;
+
 };
 
 } // namespace desync

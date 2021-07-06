@@ -67,6 +67,7 @@ struct configuration final {
 	bool print_result = false;
 	bool print_stats = false;
 	bool dry_run = false;
+	bool debug_cfg = false;
 
 	auto parse_string(std::string_view config_string) -> void {
 		for (const auto [name, value] : configuration_parser::parse_commands(config_string)) {
@@ -261,6 +262,16 @@ private:
 					const auto predicate_weight_begin = value.find_first_not_of(" \t", predicate_name.size());
 					const auto predicate_weight = (predicate_weight_begin == std::string_view::npos) ? std::string_view{} : value.substr(predicate_weight_begin);
 					config.predicate_weights[std::string{predicate_name}] = std::stoul(std::string{predicate_weight});
+				}},
+			{"debug_cfg",
+				[](configuration& config, std::string_view value) -> void {
+					if (value == "true") {
+						config.debug_cfg = true;
+					} else if (value == "false") {
+						config.debug_cfg = false;
+					} else {
+						throw error{"Invalid cfg debug setting \"", value, "\""};
+					}
 				}},
 		};
 		return table;
