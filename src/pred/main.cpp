@@ -6,8 +6,13 @@
 #include <stdexcept>               // std::exception
 #include <string>                  // std::string
 #include <util/file.hpp>           // desync::util::read_file, desync::util::write_file
+#include <util/string.hpp>         // desync::util::concat
 
 namespace {
+struct error final : std::runtime_error {
+	[[nodiscard]] explicit error(const auto&... args)
+		: std::runtime_error(desync::util::concat(args...)) {}
+};
 
 auto print(const auto&... args) -> void {
 	(std::cerr << ... << args);
@@ -59,6 +64,20 @@ auto configure(desync::desynchronizer& desynchronizer, desync::configuration& co
 	return true;
 }
 
+auto compute_hash(const std::string& filename) -> std::string {
+	std::string program = std::string{"sha1sum "} + filename;
+	std::array<char, 64> buffer;
+    FILE* p = popen(program.c_str(), "r");
+    if (p == nullptr) {
+        throw error{"Could not compute hash for file\"", filename, "\""};
+    }
+	std::string result;
+    while (fgets(buffer.data(), buffer.size(), p) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
+
 } // namespace
 
 auto main(int argc, char* argv[]) -> int {
@@ -95,7 +114,9 @@ auto main(int argc, char* argv[]) -> int {
 			}
 			auto new_assembly = std::string{};
 			try {
-				new_assembly = desynchronizer.apply_predicates(filename, *assembly);
+				const auto hash_result = compute_hash(filename);
+				auto hash = std::string_view{hash_result}.substr(0, 40);
+				new_assembly = desynchronizer.apply_predicates(filename, *assembly, hash);
 			} catch (const std::exception& e) {
 				println("desync: ", filename, ": ", e.what());
 				error = true;

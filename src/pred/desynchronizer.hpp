@@ -60,7 +60,7 @@ public:
 		}
 	}
 
-	[[nodiscard]] auto apply_predicates(std::string_view filename, std::string_view assembly) -> std::string {
+	[[nodiscard]] auto apply_predicates(std::string_view filename, std::string_view assembly, std::string_view filehash) -> std::string {
 		auto result = std::string{};
 		if (m_predicates.empty()) {
 			m_logger.writeln("Warning: No predicates to apply.");
@@ -78,7 +78,7 @@ public:
 				result = apply_debug_predicate(assembly, instructions);
 			}
 			else{
-				result = apply_predicates_inner(assembly, instructions);
+				result = apply_predicates_inner(assembly, instructions, filehash);
 			}
 			if (m_print_result || m_verbose) {
 				print_result(filename, result);
@@ -94,7 +94,8 @@ private:
 	static constexpr auto desync_label_name = std::string_view{"DESYNC"};
 	static constexpr auto desync_label_replacement_index = std::numeric_limits<std::size_t>::max();
 
-	[[nodiscard]] auto apply_predicates_inner(std::string_view assembly, const std::span<const control_flow_graph::instruction>& instructions) -> std::string {
+	[[nodiscard]] auto apply_predicates_inner(std::string_view assembly, const std::span<const control_flow_graph::instruction>& instructions, 
+			std::string_view filehash) -> std::string {
 		auto stream = std::ostringstream{};
 		auto assembly_rest = std::size_t{0};
 		auto next = std::size_t{0};
@@ -108,9 +109,8 @@ private:
 						stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n'; 	// some assembly is not considered instructions
 						assembly_rest = assembly_index;
 						const auto junk_length = generate_junk_length();
-						// TODO add unique file identifier to symbols
-						const auto junk_label = util::concat("desyncpoint", m_predicate_count, '_', junk_length);
-						const auto jump_label = util::concat(".Ldesyncjump", m_predicate_count);
+						const auto junk_label = util::concat("desyncpoint", filehash,  m_predicate_count, '_', junk_length);
+						const auto jump_label = util::concat(".Ldesyncjump", filehash, m_predicate_count);
 						++m_predicate_count;
 						predicate.apply(stream, jump_label, std::span{*arguments});
 						stream << '\n' << junk_label << ":\n";
