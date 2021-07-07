@@ -158,21 +158,22 @@ def get_desync_list(symtab):
 def get_sym_offsets(desync_list, symtab, elf):
 	"""
 	Get the offsets for each desynchronization point.
-	Return: {offset, 'desyncpoint'}
+	Return: {'desyncpoint', offset}
 	"""
-	sym_offsets = {} # the format was reversed to offset -> name since multiple symbols could share name but offsets are unique
+	sym_offsets = {}
 	for symbol in desync_list:
-		syms = symtab.get_symbol_by_name(symbol)
-		for sym in syms:
-			sym_VA = sym['st_value']
-			sym_idx = sym['st_shndx']
-			section = elf.get_section(sym_idx)
-			section_offset = section['sh_offset']
-			section_VA = section['sh_addr']
-			sym_offset = sym_VA - section_VA + section_offset
-			sym_offsets[sym_offset] = symbol	
-			if PRINT_DEBUG_INFO:
-				print('Offset for symbol [{}]: 0x{:x}'.format(symbol, sym_offset))
+		syms = symtab.get_symbol_by_name(symbol)		
+		assert(len(syms) == 1)
+		sym = syms[0]
+		sym_VA = sym['st_value']
+		sym_idx = sym['st_shndx']
+		section = elf.get_section(sym_idx)
+		section_offset = section['sh_offset']
+		section_VA = section['sh_addr']
+		sym_offset = sym_VA - section_VA + section_offset
+		sym_offsets[symbol] = sym_offset	
+		if PRINT_DEBUG_INFO:
+			print('Offset for symbol [{}]: 0x{:x}'.format(symbol, sym_offset))
 	return sym_offsets
 	
 		
@@ -227,18 +228,17 @@ def main():
 		desync_list = get_desync_list(symtab)
 		sym_offsets = get_sym_offsets(desync_list, symtab, elf)			
 		
-		for sym_offset in sym_offsets:			
+		for symbol in desync_list:			
 			"""
 			Used for benchmark: Start of symbol loop
 			"""
 			start_time = datetime.datetime.now()
 			loop_count = 0
-			symbol = sym_offsets[sym_offset] # name of desync point
 			
 			"""
 			Extract a code snippet of length READ_LENGTH.
 			"""			
-			f.seek(sym_offset)
+			f.seek(sym_offsets[symbol])
 			code = f.read(READ_LENGTH)									
 						
 			"""
@@ -303,7 +303,7 @@ def main():
 					print('**********\n Success for symbol {} \n**********\n'.format(symbol))				
 				i = 1		
 				for junk_byte in reversed(junk_bytes):
-					f.seek(sym_offset+JUNK_BYTE_SLOTS-i)
+					f.seek(sym_offsets[symbol]+JUNK_BYTE_SLOTS-i)
 					f.write(bytes([junk_byte]))		
 					i += 1
 			else:
