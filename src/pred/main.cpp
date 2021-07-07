@@ -75,6 +75,9 @@ auto compute_hash(const std::string& filename) -> std::string {
     while (fgets(buffer.data(), buffer.size(), p) != nullptr) {
         result += buffer.data();
     }
+	if (result.length() < 40){
+		throw error{"Error computing hash: string output from 'sha1sum' shorter than 40 characters."};
+	}
     return result;
 }
 
