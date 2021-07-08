@@ -136,7 +136,7 @@ private:
 			if (i >= instructions.size()) {
 				break;
 			}
-			next += generate_interval();
+			next = i + generate_interval();
 			next = std::max(i, next);
 		}
 		stream << assembly.substr(assembly_rest);
