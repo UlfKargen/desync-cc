@@ -17,6 +17,7 @@ public:
 		instruction,
 		label,
 		directive,
+		prefix,
 	};
 
 	struct statement final {
@@ -64,11 +65,28 @@ public:
 		return ch == ' ' || ch == '\t' || ch == '\n';
 	}
 
+	[[nodiscard]] static auto is_prefix(std::string_view argument_string) -> bool {
+		if (argument_string.empty())
+			return false;
+		auto begin = argument_string.find_first_not_of(" \t");
+		auto end = argument_string.find_last_not_of(" \t\n");
+		auto no_whitespace = argument_string.substr(begin, end - begin + 1);
+		const std::array<std::string_view, 13> prefix_inst = { "cs", "ds" , "ss", "es", "fs", "gs", "data16", "addr16", "lock", "wait", "rep", "repe", "repne"};
+		for(const auto& s: prefix_inst){
+			if (no_whitespace.compare(s) == 0){
+				return true;
+			}
+		}
+		return false;
+	}
+
 private:
 	explicit assembly_parser(std::string_view code)
 		: m_code(code)
 		, m_it(code.begin())
 		, m_end(code.end()) {}
+
+
 
 	[[nodiscard]] auto read_statements() -> std::vector<statement> {
 		auto result = std::vector<statement>{};
@@ -111,7 +129,11 @@ private:
 		if (!at_end()) {
 			advance();
 		}
-		return statement{m_code.substr(begin, end - begin), type};
+		auto result = m_code.substr(begin, end - begin);
+		if (is_prefix(result)){
+			type = statement_type::prefix;
+		}
+		return statement{result, type};
 	}
 
 	[[nodiscard]] auto read_arguments() -> std::vector<argument> {

@@ -29,6 +29,7 @@ public:
 
 	struct instruction final {
 		std::string_view string{};                                  // Assembly substring that the instruction originated from.
+		std::string_view prefix = std::string_view{};				// Assembly substring for any prefix instuctions immediately before it
 		disassembler::disassemble_result disassembled{};            // Info about the machine code of the instruction.
 		std::bitset<disassembler::register_count> live_registers{}; // Set of registers which are live at this instruction.
 		std::bitset<disassembler::flag_count> live_flags{};         // Set of flags which are live at this instruction.
@@ -63,7 +64,8 @@ public:
 		// First pass: Consider only whole instructions and labels.
 		{
 			auto* block = m_head.get();
-			for (const auto& statement : statements) {
+			for (auto it = statements.begin(); it != statements.end(); ++it) {
+				auto statement = *it;
 				if (statement.type == assembly_parser::statement_type::instruction) {
 					// Add an instruction.
 					auto& instruction = m_instructions.emplace_back();
@@ -81,6 +83,20 @@ public:
 					// Define symbol.
 					m_symbol_table.emplace(block->label, block);
 					m_symbols.push_back(block);
+				} else if (statement.type == assembly_parser::statement_type::prefix) {
+					assembly_parser::statement next_statment;
+					do{
+						if (++it == statements.end())
+							throw error{"Assembler error: prefix instruction at end of file"};
+						next_statment = *it;
+						if (next_statment.type == assembly_parser::statement_type::label ||
+							next_statment.type == assembly_parser::statement_type::prefix)
+							throw error{"Assembler error: prefix was not followed by instruction"};
+					} while (next_statment.type != assembly_parser::statement_type::instruction);
+					// Add instruction with prefix
+					auto& instruction = m_instructions.emplace_back();
+					instruction.string = next_statment.string;
+					instruction.prefix = statement.string;
 				}
 			}
 			block->end = m_instructions.size();
@@ -95,22 +111,23 @@ public:
 				// Assemble and disassemble the instruction to get info about the instruction type.
 				// To make sure large constants don't cause problems when assembling, set all constants to 0.
 				auto modified_instruction_string = assembly_parser::zero_out_constant_operands(instruction.string);
+				auto modified_instruction_string_with_prefix = std::string{instruction.prefix} + ' ' + std::string{modified_instruction_string};
 				try {
 					assert(m_assembler);
-					const auto assemble_result = m_assembler->assemble(modified_instruction_string);
+					const auto assemble_result = m_assembler->assemble(modified_instruction_string_with_prefix);
 					if (assemble_result.statement_count == 0) {
-						throw error{"Assembler error @", instruction_index, ": No statements assembled: ", modified_instruction_string, " (original: ", instruction.string, ")"};
+						throw error{"Assembler error @", instruction_index, ": No statements assembled: ", modified_instruction_string_with_prefix, " (original: ", instruction.string, ")"};
 					}
 					assert(m_disassembler);
 					instruction.disassembled = m_disassembler->disassemble(assemble_result.encoding);
 					if (instruction.disassembled.instructions.size() == 0) {
 						throw error{
-							"Disassembler error @", instruction_index, ": No instructions disassembled: ", modified_instruction_string, " (original: ", instruction.string, ")"};
+							"Disassembler error @", instruction_index, ": No instructions disassembled: ", modified_instruction_string_with_prefix, " (original: ", instruction.string, ")"};
 					}
 				} catch (const assembler::error& e) {
-					throw error{"Assembler error @", instruction_index, ": ", e.what(), ": ", modified_instruction_string, " (original: ", instruction.string, ")"};
+					throw error{"Assembler error @", instruction_index, ": ", e.what(), ": ", modified_instruction_string_with_prefix, " (original: ", instruction.string, ")"};
 				} catch (const disassembler::error& e) {
-					throw error{"Disassembler error @", instruction_index, ": ", e.what(), ": ", modified_instruction_string, " (original: ", instruction.string, ")"};
+					throw error{"Disassembler error @", instruction_index, ": ", e.what(), ": ", modified_instruction_string_with_prefix, " (original: ", instruction.string, ")"};
 				}
 				assert(instruction.disassembled.instructions.size() != 0);
 				const auto& info = *instruction.disassembled.instructions.data();

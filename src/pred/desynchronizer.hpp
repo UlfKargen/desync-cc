@@ -94,6 +94,15 @@ private:
 	static constexpr auto desync_label_name = std::string_view{"DESYNC"};
 	static constexpr auto desync_label_replacement_index = std::numeric_limits<std::size_t>::max();
 
+	[[nodiscard]] static auto get_instruction_start(std::string_view assembly, const control_flow_graph::instruction& instruction) -> std::size_t {
+		if (instruction.prefix.empty()){
+			return instruction.string.data() - assembly.data();
+		}
+		else{
+			return instruction.prefix.data() - assembly.data(); 
+		}
+	}
+
 	[[nodiscard]] auto apply_predicates_inner(std::string_view assembly, const std::span<const control_flow_graph::instruction>& instructions, 
 			std::string_view filehash) -> std::string {
 		auto stream = std::ostringstream{};
@@ -105,8 +114,9 @@ private:
 			while (i < instructions.size()) {
 				if (std::regex_match(std::string{instructions[i].string}, m_instruction_pattern)) {
 					if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_disassembler, m_random_number_generator)) {
-						const auto assembly_index = instructions[i].string.data() - assembly.data(); 		// original assembly is used since 
-						stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n'; 	// some assembly is not considered instructions
+						const auto assembly_index = get_instruction_start(assembly, instructions[i]);
+						// original assembly is used since some non-instruction assembly is skipped during parsing
+						stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n';
 						assembly_rest = assembly_index;
 						const auto junk_length = generate_junk_length();
 						const auto junk_label = util::concat("desyncpoint", filehash,  m_predicate_count, '_', junk_length);
@@ -142,7 +152,7 @@ private:
 		auto regs_32bit = disassembler::general_registers_32bit();
 		auto regs_64bit = disassembler::general_registers_64bit();
 		for (auto i = std::size_t{0}; i < instructions.size(); ++i) {
-			const auto assembly_index = instructions[i].string.data() - assembly.data();
+			const auto assembly_index = get_instruction_start(assembly, instructions[i]);
 			stream << assembly.substr(assembly_rest, assembly_index - assembly_rest);
 			assembly_rest = assembly_index;
 			bool inserted = false;
@@ -329,10 +339,10 @@ private:
 		}
 
 	private:
+		/**
+		* @brief Gives a list of register names of appropriate size for each parameter.
+		*/
 		[[nodiscard]] auto get_general_registers(const disassembler& disassembler) -> std::vector<std::string> {
-			/**
-			 * @brief Gives a list of register names of appropriate size for each parameter.
-			 */
 			auto arguments = std::vector<std::string>{};
 			auto i = std::size_t{0};
 			for (const auto& parameter : m_parameters) {
@@ -357,10 +367,10 @@ private:
 			return arguments;
 		}
 
+		/**
+		 * @brief Run the predicate through keystone/capstone to ses what registers and flags are needed.
+		 */
 		auto check_assembly(std::string_view filename, const assembler& assembler, const disassembler& disassembler) -> void {
-			/**
-			 * @brief Run the predicate through keystone/capstone to ses what registers anf flags are needed.
-			 */
 			auto ignore_registers = disassembler.all_registers_r64();// ignore registers R8-R15 since they are used in the test
 			ignore_registers.flip(disassembler.register_index(X86_REG_EFLAGS)); // and eflags since it is covered by m_required_flags
 			const auto arguments = get_general_registers(disassembler);
