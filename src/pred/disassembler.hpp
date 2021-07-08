@@ -355,6 +355,17 @@ public:
 		return result;
 	}
 
+	[[nodiscard]] static auto all_registers_r64() -> std::bitset<register_count> {
+		auto result = std::bitset<register_count>{};
+		for (auto i = std::size_t{0}; i < num_extra_64_registers; ++i){
+			result[register_index(X86_REG_R8 + i)] = true;
+			result[register_index(X86_REG_R8D + i)] = true;
+			result[register_index(X86_REG_R8W + i)] = true;
+			result[register_index(X86_REG_R8B + i)] = true;
+		}
+		return result;
+	}
+
 	[[nodiscard]] static auto related_registers(std::size_t i) -> std::bitset<register_count> {
 		// clang-format off
 		switch (i) {

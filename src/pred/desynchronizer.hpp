@@ -104,7 +104,7 @@ private:
 			const auto& predicate = m_predicates[generate_predicate()];
 			while (i < instructions.size()) {
 				if (std::regex_match(std::string{instructions[i].string}, m_instruction_pattern)) {
-					if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_disassembler, &m_random_number_generator)) {
+					if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_disassembler, m_random_number_generator)) {
 						const auto assembly_index = instructions[i].string.data() - assembly.data(); 		// original assembly is used since 
 						stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n'; 	// some assembly is not considered instructions
 						assembly_rest = assembly_index;
@@ -260,27 +260,43 @@ private:
 		}
 
 		[[nodiscard]] auto find_arguments(std::bitset<disassembler::register_count> free_registers, std::bitset<disassembler::flag_count> free_flags,
-			const disassembler& disassembler, std::mt19937* g) const -> std::optional<std::vector<std::string>> {
+			const disassembler& disassembler, std::mt19937& g) const -> std::optional<std::vector<std::string>> {
 			auto result = std::optional<std::vector<std::string>>{};
-			if ((free_flags & m_required_flags) == m_required_flags && free_registers.count() >= m_parameters.size()) {
-				auto& arguments = result.emplace();
-				for (const auto& parameter : m_parameters) {
-					auto found = false;
-					auto order = predicate::index_list();
-					if (g != nullptr)
-						shuffle (order.begin(), order.end(), *g);
-					for (auto it = order.begin(); it != order.end(); it++) {
-						if (free_registers[*it] && applicable_registers(parameter)[*it]) {
-							arguments.emplace_back(disassembler.register_name(*it));
-							free_registers &= ~disassembler::related_registers(*it);
-							found = true;
-							break;
-						}
+			if ((free_flags & m_required_flags) != m_required_flags){
+				return result; // flags needed by predicate are not free
+			}
+			if ((free_registers & m_used_registers) != m_used_registers){
+				return result; // registers needed by predicate are not free
+			}
+			if (free_registers.count() < m_parameters.size()){
+				return result; // not enough free registers
+			}
+			auto& arguments = result.emplace();
+			for (const auto& parameter : m_parameters) {
+				auto found = false;
+				// randomize order of registers
+				auto order = predicate::index_list();
+				shuffle (order.begin(), order.end(), g);
+				// search list of registers
+				for (auto it = order.begin(); it != order.end(); it++) {
+					if (m_used_registers.test(*it)){
+						continue; // register is reserved for predicate, don't use
 					}
-					if (!found) {
-						result.reset();
+					if (free_registers.test(*it) && applicable_registers(parameter).test(*it)) {
+						auto related_regs = disassembler::related_registers(*it);
+						if ((m_used_registers & related_regs).count() > 0){
+							continue; // register would affect a register needed by predicate, don't use
+						}
+						// register is fine to use, add to list of arguments
+						arguments.emplace_back(disassembler.register_name(*it));
+						free_registers &= ~related_regs;
+						found = true;
 						break;
 					}
+				}
+				if (!found) {
+					result.reset(); // failed to find register
+					break;
 				}
 			}
 			return result;
@@ -313,17 +329,43 @@ private:
 		}
 
 	private:
-		auto check_assembly(std::string_view filename, const assembler& assembler, const disassembler& disassembler) -> void {
-			auto free_registers = std::bitset<disassembler::register_count>{};
-			free_registers.set();
-			auto free_flags = std::bitset<disassembler::flag_count>{};
-			free_flags.set();
-			const auto arguments = find_arguments(free_registers, free_flags, disassembler, nullptr);
-			if (!arguments) {
-				throw error{filename, ": Predicate \"", m_name, "\": Failed to find suitable registers for parameters."};
+		[[nodiscard]] auto get_general_registers(const disassembler& disassembler) -> std::vector<std::string> {
+			/**
+			 * @brief Gives a list of register names of appropriate size for each parameter.
+			 */
+			auto arguments = std::vector<std::string>{};
+			auto i = std::size_t{0};
+			for (const auto& parameter : m_parameters) {
+				std::string arg;
+				switch (parameter) {
+					case parameter_type::r8:
+						arg = disassembler.register_name(disassembler::register_index(X86_REG_R8B + i));
+						break;
+					case parameter_type::r16:
+						arg = disassembler.register_name(disassembler::register_index(X86_REG_R8W + i));
+						break;
+					case parameter_type::r32:
+						arg = disassembler.register_name(disassembler::register_index(X86_REG_R8D + i));
+						break;
+					case parameter_type::r64:
+						arg = disassembler.register_name(disassembler::register_index(X86_REG_R8 + i));
+						break;
+				}
+				arguments.emplace_back(arg);
+				++i;
 			}
+			return arguments;
+		}
+
+		auto check_assembly(std::string_view filename, const assembler& assembler, const disassembler& disassembler) -> void {
+			/**
+			 * @brief Run the predicate through keystone/capstone to ses what registers anf flags are needed.
+			 */
+			auto ignore_registers = disassembler.all_registers_r64();// ignore registers R8-R15 since they are used in the test
+			ignore_registers.flip(disassembler.register_index(X86_REG_EFLAGS)); // and eflags since it is covered by m_required_flags
+			const auto arguments = get_general_registers(disassembler);
 			auto stream = std::ostringstream{};
-			apply(stream, "dummy_label", std::span{*arguments});
+			apply(stream, "dummy_label", std::span{arguments});
 			const auto assembly = stream.str();
 			try {
 				const auto assemble_result = assembler.assemble(assembly);
@@ -331,6 +373,7 @@ private:
 				for (const auto& instruction : std::span{disassemble_result.instructions.data(), disassemble_result.instructions.size()}) {
 					const auto access = disassembler.access(instruction);
 					m_required_flags |= access.flags_written;
+					m_used_registers |= (access.registers_written & ~ignore_registers); 
 				}
 			} catch (const assembler::error& e) {
 				throw error{filename, ": Predicate \"", m_name, "\": Assembler error: ", e.what()};
@@ -344,6 +387,7 @@ private:
 		std::vector<std::string_view> m_pieces{};
 		std::vector<std::size_t> m_replacement_indices{};
 		std::vector<parameter_type> m_parameters{};
+		std::bitset<disassembler::register_count> m_used_registers{};
 		std::bitset<disassembler::flag_count> m_required_flags{};
 	};
 
