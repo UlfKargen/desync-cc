@@ -311,10 +311,18 @@ private:
 	auto call_convention(const basic_block& block) -> std::bitset<disassembler::register_count> {
 		const auto* const target_block = block.successors.back(); // relies on target being added last
 		if (!target_block){
-			return std::bitset<disassembler::register_count>{};
+			return guess_call_convention();
 		}
 		const auto* fallthrough_block = block.successors.front();
-		return fallthrough_block->live_registers & ~(target_block->live_registers);
+		return fallthrough_block->live_registers & ~(target_block->live_registers); // registers that are live in fallthrough but free in call
+	}
+
+	/**
+	 * @brief The called function is not known so used registers has to be inferred
+	 * */
+	auto guess_call_convention() -> std::bitset<disassembler::register_count> {
+		// TODO write function
+		return std::bitset<disassembler::register_count>{};
 	}
 
 	friend auto operator<<(std::ostream& out, const control_flow_graph& cfg) -> std::ostream&;
