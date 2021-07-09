@@ -227,6 +227,7 @@ private:
 					}
 					// Add the branch target as a successor.
 					if (disassembler::has_operand(info)){
+						// calling convention check relies on the target successor being added last so do not change order.
 						if (disassembler::has_immediate_operand(info)) {
 							// Search for matching symbols.
 							const auto arguments = assembly_parser::parse_arguments(instruction.string);
@@ -289,6 +290,8 @@ private:
 			const auto access = m_disassembler->access(info);
 			block.live_registers &= ~access.registers_written;
 			block.live_registers |= disassembler::related_registers(access.registers_read);
+			if (m_disassembler->is_call(info))
+				block.live_registers &= ~call_convention(block);
 			block.live_flags &= ~access.flags_written;
 			block.live_flags |= access.flags_read;
 			instruction.live_registers = block.live_registers;
@@ -300,6 +303,18 @@ private:
 				work.push(predecessor);
 			}
 		}
+	}
+
+	/**
+	 * @brief Get the registers that are live when call is performed
+	 * */
+	auto call_convention(const basic_block& block) -> std::bitset<disassembler::register_count> {
+		const auto* const target_block = block.successors.back(); // relies on target being added last
+		if (!target_block){
+			return std::bitset<disassembler::register_count>{};
+		}
+		const auto* fallthrough_block = block.successors.front();
+		return fallthrough_block->live_registers & ~(target_block->live_registers);
 	}
 
 	friend auto operator<<(std::ostream& out, const control_flow_graph& cfg) -> std::ostream&;
