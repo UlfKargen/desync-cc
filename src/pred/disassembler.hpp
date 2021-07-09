@@ -570,10 +570,17 @@ public:
 		}
 
 		//registers
-		for (auto i = std::size_t{0}; i < read_count; ++i) {
-			assert(regs_read[i] >= 1);
-			assert(register_index(regs_read[i]) < result.registers_read.size());
-			result.registers_read[register_index(regs_read[i])] = true;
+		if (info.id == X86_INS_XOR && read_count < 2 && info.detail->x86.operands[0].type == X86_OP_REG && info.detail->x86.operands[1].type == X86_OP_REG){
+			// special case for 'xor %r, %r' since it is so common to clear registers: the value is never used so don't treat as read
+			assert(read_count == 1);
+			assert(info.detail->x86.operands[0].reg == info.detail->x86.operands[1].reg);
+		}
+		else{
+			for (auto i = std::size_t{0}; i < read_count; ++i) {
+				assert(regs_read[i] >= 1);
+				assert(register_index(regs_read[i]) < result.registers_read.size());
+				result.registers_read[register_index(regs_read[i])] = true;
+			}
 		}
 
 		for (auto i = std::size_t{0}; i < write_count; ++i) {
