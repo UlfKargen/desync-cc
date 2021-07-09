@@ -55,54 +55,102 @@ public:
 	control_flow_graph(std::string_view assembly, const assembler& assembler, const disassembler& disassembler)
 		: m_assembler(&assembler)
 		, m_disassembler(&disassembler) {
-		// Parse assembly statements.
-		const auto statements = assembly_parser::parse_statements(assembly);
+		split_blocks(assembly);
+	}
 
+	auto analyze_liveness() -> void {
+		auto work = std::queue<basic_block*>{};
+		for (auto* block = m_head.get(); block; block = block->next.get()) {
+			analyze_liveness(*block, work);
+		}
+		while (!work.empty()) {
+			auto* const block = work.front();
+			work.pop();
+			assert(block);
+			analyze_liveness(*block, work);
+		}
+	}
+
+	[[nodiscard]] auto instructions() const noexcept -> std::span<const instruction> {
+		return std::span{m_instructions};
+	}
+
+	[[nodiscard]] auto symbols() const noexcept -> std::span<basic_block* const> {
+		return std::span{m_symbols};
+	}
+
+	[[nodiscard]] auto symbol(std::string_view label) const -> const basic_block* {
+		if (const auto it = m_symbol_table.find(label); it != m_symbol_table.end()) {
+			return it->second;
+		}
+		return nullptr;
+	}
+
+	[[nodiscard]] auto head() const noexcept -> const basic_block& {
+		assert(m_head);
+		return *m_head;
+	}
+
+private:
+
+	/** 
+	 * @brief Split the assebly into basic blocks
+	 * */
+	auto split_blocks(std::string_view assembly) -> void {
+		first_pass(assembly);
+		second_pass();
+	}
+
+	/** 
+	 * @brief First pass: Consider only whole instructions and labels.
+	 * */
+	auto first_pass(std::string_view assembly) -> void {
+		const auto statements = assembly_parser::parse_statements(assembly);
 		// Allocate first basic block.
 		m_head = std::make_unique<basic_block>();
+		auto* block = m_head.get();
+		for (auto it = statements.begin(); it != statements.end(); ++it) {
+			auto statement = *it;
+			if (statement.type == assembly_parser::statement_type::instruction) {
+				// Add an instruction.
+				auto& instruction = m_instructions.emplace_back();
+				instruction.string = statement.string;
+			} else if (statement.type == assembly_parser::statement_type::label) {
+				// Start a new basic block.
+				block->end = m_instructions.size();
+				block->next = std::make_unique<basic_block>();
+				block->next->label = statement.string;
+				block->next->begin = block->end;
+				block->next->predecessors.push_back(block);
+				block->successors.push_back(block->next.get());
+				block = block->next.get();
 
-		// First pass: Consider only whole instructions and labels.
-		{
-			auto* block = m_head.get();
-			for (auto it = statements.begin(); it != statements.end(); ++it) {
-				auto statement = *it;
-				if (statement.type == assembly_parser::statement_type::instruction) {
-					// Add an instruction.
-					auto& instruction = m_instructions.emplace_back();
-					instruction.string = statement.string;
-				} else if (statement.type == assembly_parser::statement_type::label) {
-					// Start a new basic block.
-					block->end = m_instructions.size();
-					block->next = std::make_unique<basic_block>();
-					block->next->label = statement.string;
-					block->next->begin = block->end;
-					block->next->predecessors.push_back(block);
-					block->successors.push_back(block->next.get());
-					block = block->next.get();
-
-					// Define symbol.
-					m_symbol_table.emplace(block->label, block);
-					m_symbols.push_back(block);
-				} else if (statement.type == assembly_parser::statement_type::prefix) {
-					assembly_parser::statement next_statment;
-					do{
-						if (++it == statements.end())
-							throw error{"Assembler error: prefix instruction at end of file"};
-						next_statment = *it;
-						if (next_statment.type == assembly_parser::statement_type::label ||
-							next_statment.type == assembly_parser::statement_type::prefix)
-							throw error{"Assembler error: prefix was not followed by instruction"};
-					} while (next_statment.type != assembly_parser::statement_type::instruction);
-					// Add instruction with prefix
-					auto& instruction = m_instructions.emplace_back();
-					instruction.string = next_statment.string;
-					instruction.prefix = statement.string;
-				}
+				// Define symbol.
+				m_symbol_table.emplace(block->label, block);
+				m_symbols.push_back(block);
+			} else if (statement.type == assembly_parser::statement_type::prefix) {
+				assembly_parser::statement next_statment;
+				do{
+					if (++it == statements.end())
+						throw error{"Assembler error: prefix instruction at end of file"};
+					next_statment = *it;
+					if (next_statment.type == assembly_parser::statement_type::label ||
+						next_statment.type == assembly_parser::statement_type::prefix)
+						throw error{"Assembler error: prefix was not followed by instruction"};
+				} while (next_statment.type != assembly_parser::statement_type::instruction);
+				// Add instruction with prefix
+				auto& instruction = m_instructions.emplace_back();
+				instruction.string = next_statment.string;
+				instruction.prefix = statement.string;
 			}
-			block->end = m_instructions.size();
 		}
+		block->end = m_instructions.size();
+	}
 
-		// Second pass: Consider branch instructions now that we know all symbols.
+	/** 
+	 * @brief Second pass: Consider branch instructions now that we know all symbols. 
+	 * */
+	auto second_pass() -> void {
 		for (auto* block = m_head.get(); block; block = block->next.get()) {
 			// Iterate all instructions in each block.
 			for (auto instruction_index = block->begin; instruction_index != block->end; ++instruction_index) {
@@ -205,40 +253,6 @@ public:
 		}
 	}
 
-	auto analyze_liveness() -> void {
-		auto work = std::queue<basic_block*>{};
-		for (auto* block = m_head.get(); block; block = block->next.get()) {
-			analyze_liveness(*block, work);
-		}
-		while (!work.empty()) {
-			auto* const block = work.front();
-			work.pop();
-			assert(block);
-			analyze_liveness(*block, work);
-		}
-	}
-
-	[[nodiscard]] auto instructions() const noexcept -> std::span<const instruction> {
-		return std::span{m_instructions};
-	}
-
-	[[nodiscard]] auto symbols() const noexcept -> std::span<basic_block* const> {
-		return std::span{m_symbols};
-	}
-
-	[[nodiscard]] auto symbol(std::string_view label) const -> const basic_block* {
-		if (const auto it = m_symbol_table.find(label); it != m_symbol_table.end()) {
-			return it->second;
-		}
-		return nullptr;
-	}
-
-	[[nodiscard]] auto head() const noexcept -> const basic_block& {
-		assert(m_head);
-		return *m_head;
-	}
-
-private:
 	auto analyze_liveness(basic_block& block, std::queue<basic_block*>& work) -> void {
 		const auto old_live_registers = block.live_registers;
 		const auto old_live_flags = block.live_flags;
