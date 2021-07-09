@@ -205,6 +205,10 @@ public:
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
 			result |= general_registers_8bit();
+			result[register_index(X86_REG_SIL)] = true;
+			result[register_index(X86_REG_DIL)] = true;
+			result[register_index(X86_REG_BPL)] = true;
+			result[register_index(X86_REG_SPL)] = true;
 			return result;
 		}();
 		return bits;
@@ -304,6 +308,7 @@ public:
 	[[nodiscard]] static auto registers_si() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
+			result[register_index(X86_REG_SIL)] = true;
 			result[register_index(X86_REG_SI)] = true;
 			result[register_index(X86_REG_ESI)] = true;
 			result[register_index(X86_REG_RSI)] = true;
@@ -315,6 +320,7 @@ public:
 	[[nodiscard]] static auto registers_di() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
+			result[register_index(X86_REG_DIL)] = true;
 			result[register_index(X86_REG_DI)] = true;
 			result[register_index(X86_REG_EDI)] = true;
 			result[register_index(X86_REG_RDI)] = true;
@@ -326,6 +332,7 @@ public:
 	[[nodiscard]] static auto registers_bp() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
+			result[register_index(X86_REG_BPL)] = true;
 			result[register_index(X86_REG_BP)] = true;
 			result[register_index(X86_REG_EBP)] = true;
 			result[register_index(X86_REG_RBP)] = true;
@@ -337,6 +344,7 @@ public:
 	[[nodiscard]] static auto registers_sp() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
+			result[register_index(X86_REG_SPL)] = true;
 			result[register_index(X86_REG_SP)] = true;
 			result[register_index(X86_REG_ESP)] = true;
 			result[register_index(X86_REG_RSP)] = true;
@@ -393,18 +401,22 @@ public:
 			case register_index(X86_REG_EDX): [[fallthrough]];
 			case register_index(X86_REG_RDX):
 				return registers_dx();
+			case register_index(X86_REG_SIL): [[fallthrough]];
 			case register_index(X86_REG_SI): [[fallthrough]];
 			case register_index(X86_REG_ESI): [[fallthrough]];
 			case register_index(X86_REG_RSI):
 				return registers_si();
+			case register_index(X86_REG_DIL): [[fallthrough]];
 			case register_index(X86_REG_DI): [[fallthrough]];
 			case register_index(X86_REG_EDI): [[fallthrough]];
 			case register_index(X86_REG_RDI):
 				return registers_di();
+			case register_index(X86_REG_BPL): [[fallthrough]];
 			case register_index(X86_REG_BP): [[fallthrough]];
 			case register_index(X86_REG_EBP): [[fallthrough]];
 			case register_index(X86_REG_RBP):
 				return registers_bp();
+			case register_index(X86_REG_SPL): [[fallthrough]];
 			case register_index(X86_REG_SP): [[fallthrough]];
 			case register_index(X86_REG_ESP): [[fallthrough]];
 			case register_index(X86_REG_RSP):
@@ -424,6 +436,143 @@ public:
 			return registers_r64(register_id(i) - X86_REG_R8B);	
 		}
 		auto result = std::bitset<register_count>{};
+		result[i] = true;
+		return result;
+	}
+
+	[[nodiscard]] static auto registers_affected_by(std::size_t i) -> std::bitset<register_count> {
+		auto result = std::bitset<register_count>{};
+		// clang-format off
+		switch (i) {
+			//AX
+			case register_index(X86_REG_RAX): 
+				result[register_index(X86_REG_RAX)] = true; [[fallthrough]];
+			case register_index(X86_REG_EAX):
+				result[register_index(X86_REG_EAX)] = true; [[fallthrough]];
+			case register_index(X86_REG_AX):
+				result[register_index(X86_REG_AX)] = true;
+				result[register_index(X86_REG_AH)] = true;
+				result[register_index(X86_REG_AL)] = true;
+				return result;			
+			case register_index(X86_REG_AH):
+				result[register_index(X86_REG_AH)] = true;
+				return result;
+			case register_index(X86_REG_AL):
+				result[register_index(X86_REG_AL)] = true;
+				return result;
+			//BX
+			case register_index(X86_REG_RBX):
+				result[register_index(X86_REG_RBX)] = true; [[fallthrough]];
+			case register_index(X86_REG_EBX):
+				result[register_index(X86_REG_EBX)] = true; [[fallthrough]];
+			case register_index(X86_REG_BX):
+				result[register_index(X86_REG_BX)] = true;
+				result[register_index(X86_REG_BH)] = true;
+				result[register_index(X86_REG_BL)] = true;
+				return result;			
+			case register_index(X86_REG_BH):
+				result[register_index(X86_REG_BH)] = true;
+				return result;
+			case register_index(X86_REG_BL):
+				result[register_index(X86_REG_BL)] = true;
+				return result;
+			//CX
+			case register_index(X86_REG_RCX):
+				result[register_index(X86_REG_RCX)] = true; [[fallthrough]];
+			case register_index(X86_REG_ECX):
+				result[register_index(X86_REG_ECX)] = true; [[fallthrough]];
+			case register_index(X86_REG_CX):
+				result[register_index(X86_REG_CX)] = true;
+				result[register_index(X86_REG_CH)] = true;
+				result[register_index(X86_REG_CL)] = true;
+				return result;			
+			case register_index(X86_REG_CH):
+				result[register_index(X86_REG_CH)] = true;
+				return result;
+			case register_index(X86_REG_CL):
+				result[register_index(X86_REG_CL)] = true;
+				return result;
+			//DX
+			case register_index(X86_REG_RDX):
+				result[register_index(X86_REG_RDX)] = true; [[fallthrough]];
+			case register_index(X86_REG_EDX):
+				result[register_index(X86_REG_EDX)] = true; [[fallthrough]];
+			case register_index(X86_REG_DX):
+				result[register_index(X86_REG_DX)] = true;
+				result[register_index(X86_REG_DH)] = true;
+				result[register_index(X86_REG_DL)] = true;
+				return result;			
+			case register_index(X86_REG_DH):
+				result[register_index(X86_REG_DH)] = true;
+				return result;
+			case register_index(X86_REG_DL):
+				result[register_index(X86_REG_DL)] = true;
+				return result;
+			//SI
+			case register_index(X86_REG_RSI):
+				result[register_index(X86_REG_RSI)] = true; [[fallthrough]];
+			case register_index(X86_REG_ESI): 
+				result[register_index(X86_REG_ESI)] = true; [[fallthrough]];
+			case register_index(X86_REG_SI): 
+				result[register_index(X86_REG_SI)] = true; [[fallthrough]];
+			case register_index(X86_REG_SIL):
+				result[register_index(X86_REG_SIL)] = true;
+				return result;
+			//DI
+			case register_index(X86_REG_RDI):
+				result[register_index(X86_REG_RDI)] = true; [[fallthrough]];
+			case register_index(X86_REG_EDI):
+				result[register_index(X86_REG_EDI)] = true; [[fallthrough]];
+			case register_index(X86_REG_DI): 
+				result[register_index(X86_REG_DI)] = true; [[fallthrough]];	
+			case register_index(X86_REG_DIL):
+				result[register_index(X86_REG_DIL)] = true;
+				return result;
+			//BP
+			case register_index(X86_REG_RBP):
+				result[register_index(X86_REG_RBP)] = true; [[fallthrough]];
+			case register_index(X86_REG_EBP):
+				result[register_index(X86_REG_EBP)] = true; [[fallthrough]];
+			case register_index(X86_REG_BP):
+				result[register_index(X86_REG_BP)] = true; [[fallthrough]];	
+			case register_index(X86_REG_BPL):
+				result[register_index(X86_REG_BPL)] = true;
+				return result;
+			//SP
+			case register_index(X86_REG_RSP):
+				result[register_index(X86_REG_RSP)] = true; [[fallthrough]];
+			case register_index(X86_REG_ESP):
+				result[register_index(X86_REG_ESP)] = true; [[fallthrough]];
+			case register_index(X86_REG_SP):
+				result[register_index(X86_REG_SP)] = true; [[fallthrough]];	
+			case register_index(X86_REG_SPL):
+				result[register_index(X86_REG_SPL)] = true;
+				return result;
+		}
+		// clang-format on
+		// R8-R15
+		if (register_index(X86_REG_R8) <= i && i <= register_index(X86_REG_R15)){
+			result[i] = true;
+			result[i + X86_REG_R8D - X86_REG_R8] = true;
+			result[i + X86_REG_R8W - X86_REG_R8] = true;
+			result[i + X86_REG_R8B - X86_REG_R8] = true;
+			return result;
+		}
+		if (register_index(X86_REG_R8D) <= i && i <= register_index(X86_REG_R15D)){
+			result[i] = true;
+			result[i + X86_REG_R8W - X86_REG_R8D] = true;
+			result[i + X86_REG_R8B - X86_REG_R8D] = true;
+			return result;
+		}
+		if (register_index(X86_REG_R8W) <= i && i <= register_index(X86_REG_R15W)){
+			result[i] = true;
+			result[i + X86_REG_R8B - X86_REG_R8W] = true;
+			return result;
+		}
+		if (register_index(X86_REG_R8B) <= i && i <= register_index(X86_REG_R15B)){
+			result[i] = true;
+			return result;
+		}
 		result[i] = true;
 		return result;
 	}
@@ -459,22 +608,26 @@ public:
 			registers[register_index(X86_REG_RDX)]) {
 			result |= registers_dx();
 		}
-		if (registers[register_index(X86_REG_SI)] ||
+		if (registers[register_index(X86_REG_SIL)] ||
+			registers[register_index(X86_REG_SI)] ||
 			registers[register_index(X86_REG_ESI)] ||
 			registers[register_index(X86_REG_RSI)]) {
 			result |= registers_si();
 		}
-		if (registers[register_index(X86_REG_DI)] ||
+		if (registers[register_index(X86_REG_DIL)] ||
+			registers[register_index(X86_REG_DI)] ||
 			registers[register_index(X86_REG_EDI)] ||
 			registers[register_index(X86_REG_RDI)]) {
 			result |= registers_di();
 		}
-		if (registers[register_index(X86_REG_BP)] ||
+		if (registers[register_index(X86_REG_BPL)] ||
+			registers[register_index(X86_REG_BP)] ||
 			registers[register_index(X86_REG_EBP)] ||
 			registers[register_index(X86_REG_RBP)]) {
 			result |= registers_bp();
 		}
-		if (registers[register_index(X86_REG_SP)] ||
+		if (registers[register_index(X86_REG_SPL)] ||
+			registers[register_index(X86_REG_SP)] ||
 			registers[register_index(X86_REG_ESP)] ||
 			registers[register_index(X86_REG_RSP)]) {
 			result |= registers_sp();
@@ -586,7 +739,8 @@ public:
 		for (auto i = std::size_t{0}; i < write_count; ++i) {
 			assert(regs_write[i] >= 1);
 			assert(register_index(regs_write[i]) < result.registers_written.size());
-			result.registers_written[register_index(regs_write[i])] = true;
+			result.registers_written |= registers_affected_by(register_index(regs_write[i]));
+			//old method: result.registers_written[register_index(regs_write[i])] = true;
 		}
 
 		//eflags
