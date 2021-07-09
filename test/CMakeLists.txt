@@ -5,9 +5,11 @@ project("desync-test")
 add_test(
     NAME test-basic1
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/desync-test.sh" "${CMAKE_CURRENT_SOURCE_DIR}/basic1"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../"
 )
 
 add_test(
     NAME test-basic2
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/desync-test.sh" "${CMAKE_CURRENT_SOURCE_DIR}/basic2"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../"
 )
