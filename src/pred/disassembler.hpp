@@ -385,6 +385,23 @@ public:
 		return result;
 	}
 
+	[[nodiscard]] static auto scratch_registers() -> std::bitset<register_count> {
+		static const auto bits = [] {
+			auto result = std::bitset<register_count>{};
+			result |= registers_ax();
+			//result |= registers_di(); // these registers are used to pass parameters
+			//result |= registers_si(); // they could be used when function takes less than four arguments
+			//result |= registers_dx();
+			//result |= registers_cx();
+			//result |= registers_r64(X86_REG_R8 - X86_REG_R8);
+			//result |= registers_r64(X86_REG_R9 - X86_REG_R8);
+			result |= registers_r64(X86_REG_R10 - X86_REG_R8);
+			result |= registers_r64(X86_REG_R11 - X86_REG_R8);
+			return result;
+		}();
+		return bits;
+	}
+
 	[[nodiscard]] static auto related_registers(std::size_t i) -> std::bitset<register_count> {
 		// clang-format off
 		switch (i) {

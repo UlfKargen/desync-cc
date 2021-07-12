@@ -289,9 +289,9 @@ private:
 			assert(m_disassembler);
 			const auto access = m_disassembler->access(info);
 			block.live_registers &= ~access.registers_written;
-			block.live_registers |= disassembler::related_registers(access.registers_read);
 			if (m_disassembler->is_call(info))
 				block.live_registers &= ~call_convention(block);
+			block.live_registers |= disassembler::related_registers(access.registers_read);
 			block.live_flags &= ~access.flags_written;
 			block.live_flags |= access.flags_read;
 			instruction.live_registers = block.live_registers;
@@ -313,16 +313,15 @@ private:
 		if (!target_block){
 			return guess_call_convention();
 		}
-		const auto* fallthrough_block = block.successors.front();
-		return fallthrough_block->live_registers & ~(target_block->live_registers); // registers that are live in fallthrough but free in call
+		return ~(target_block->live_registers); // use registers that are free in call
 	}
 
 	/**
 	 * @brief The called function is not known so used registers has to be inferred
 	 * */
 	auto guess_call_convention() -> std::bitset<disassembler::register_count> {
-		// TODO write function
-		return std::bitset<disassembler::register_count>{};
+		// use standard call registers
+		return disassembler:: disassembler::scratch_registers();
 	}
 
 	friend auto operator<<(std::ostream& out, const control_flow_graph& cfg) -> std::ostream&;
