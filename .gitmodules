@@ -4,3 +4,6 @@
 [submodule "thirdparty/capstone"]
 	path = thirdparty/capstone
 	url = https://github.com/aquynh/capstone.git
+[submodule "thirdparty/smhasher"]
+	path = thirdparty/smhasher
+	url = https://github.com/aappleby/smhasher.git

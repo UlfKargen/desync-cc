@@ -7,6 +7,7 @@
 #include <string>                  // std::string
 #include <util/file.hpp>           // desync::util::read_file, desync::util::write_file
 #include <util/string.hpp>         // desync::util::concat
+#include <MurmurHash3.h>           // MurmurHash3
 
 namespace {
 struct error final : std::runtime_error {
@@ -64,21 +65,12 @@ auto configure(desync::desynchronizer& desynchronizer, desync::configuration& co
 	return true;
 }
 
-auto compute_hash(const std::string& filename) -> std::string {
-	std::string program = std::string{"sha1sum "} + filename;
-	std::array<char, 64> buffer;
-    FILE* p = popen(program.c_str(), "r");
-    if (p == nullptr) {
-        throw error{"Could not compute hash for file\"", filename, "\""};
-    }
-	std::string result;
-    while (fgets(buffer.data(), buffer.size(), p) != nullptr) {
-        result += buffer.data();
-    }
-	if (result.length() < 40){
-		throw error{"Error computing hash: string output from 'sha1sum' shorter than 40 characters."};
-	}
-    return result;
+auto hash_murmur3(const std::string* assembly) -> std::string {
+	uint64_t result[2] = {0, 0};
+	MurmurHash3_x64_128(assembly->c_str(), assembly->length() * sizeof(char), 823179, result);
+	std::stringstream stream;
+	stream << std::hex << result[0] << result[1];
+	return stream.str();
 }
 
 } // namespace
@@ -117,8 +109,7 @@ auto main(int argc, char* argv[]) -> int {
 			}
 			auto new_assembly = std::string{};
 			try {
-				const auto hash_result = compute_hash(filename);
-				auto hash = std::string_view{hash_result}.substr(0, 40);
+				const auto hash = hash_murmur3(&*assembly);
 				new_assembly = desynchronizer.apply_predicates(filename, *assembly, hash);
 			} catch (const std::exception& e) {
 				println("desync: ", filename, ": ", e.what());

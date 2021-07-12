@@ -11,6 +11,9 @@ set(DESYNC_USE_CLANG_TIDY OFF CACHE BOOL "Enable static analysis using clang-tid
 
 add_subdirectory("thirdparty/keystone")
 add_subdirectory("thirdparty/capstone")
+remove_definitions(-Werror)
+add_subdirectory("thirdparty/smhasher/src")
+add_definitions(-Werror)
 
 add_executable(
 	desync-pred
@@ -41,6 +44,7 @@ target_include_directories(
 	PRIVATE
 		"thirdparty/keystone/include"
 		"thirdparty/capstone/include"
+		"thirdparty/smhasher/src"
 )
 
 target_compile_features(
@@ -74,6 +78,7 @@ target_link_libraries(
 	PRIVATE
 		keystone
 		capstone-static
+		SMHasherSupport
 )
 
 if(DESYNC_USE_CLANG_TIDY)
