@@ -257,7 +257,6 @@ private:
 	auto analyze_liveness(basic_block& block, std::queue<basic_block*>& work) -> void {
 		const auto old_live_registers = block.live_registers;
 		const auto old_live_flags = block.live_flags;
-		// TODO: Special case for call instructions
 		if (block.successors.empty()) {
 			block.live_registers.set();
 			block.live_flags.set();
@@ -275,6 +274,7 @@ private:
 						block.live_flags |= successor->live_flags;
 					}
 				} else {
+					// successor is an unknown target, assume everything is live
 					block.live_registers.set();
 					block.live_flags.set();
 					break;
@@ -288,16 +288,17 @@ private:
 			const auto& info = *instruction.disassembled.instructions.data();
 			assert(m_disassembler);
 			const auto access = m_disassembler->access(info);
-			block.live_registers &= ~access.registers_written;
+			block.live_registers &= ~access.registers_written; // registers that are overwritten are not live
 			if (m_disassembler->is_call(info))
-				block.live_registers &= ~call_convention(block);
-			block.live_registers |= disassembler::related_registers(access.registers_read);
-			block.live_flags &= ~access.flags_written;
-			block.live_flags |= access.flags_read;
+				block.live_registers &= ~call_convention(block); // add registers freed by calling convention as "not live"
+			block.live_registers |= disassembler::related_registers(access.registers_read); // registers that are read are live
+			block.live_flags &= ~access.flags_written; // flags that are overwritten are not live
+			block.live_flags |= access.flags_read; // flags that are read are live
 			instruction.live_registers = block.live_registers;
 			instruction.live_flags = block.live_flags;
 		}
 		if (block.live_registers != old_live_registers || block.live_flags != old_live_flags) {
+			// the liveness was updated so update predecessors
 			for (auto* const predecessor : block.predecessors) {
 				assert(predecessor);
 				work.push(predecessor);
@@ -306,7 +307,7 @@ private:
 	}
 
 	/**
-	 * @brief Get the registers that are live when call is performed
+	 * @brief Get the registers that are freed when call is performed
 	 * */
 	auto call_convention(const basic_block& block) -> std::bitset<disassembler::register_count> {
 		const auto* const target_block = block.successors.back(); // relies on target being added last

@@ -385,6 +385,9 @@ public:
 		return result;
 	}
 
+	/**
+	 * @brief Registers that are potentially overwritten during a function call.
+	 */
 	[[nodiscard]] static auto scratch_registers() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
@@ -402,6 +405,9 @@ public:
 		return bits;
 	}
 
+	/**
+	 * @brief Return a set of all registers related to the register in the given set of registers.
+	 */
 	[[nodiscard]] static auto related_registers(std::size_t i) -> std::bitset<register_count> {
 		// clang-format off
 		switch (i) {
@@ -468,6 +474,11 @@ public:
 		return result;
 	}
 
+	/**
+	 * @brief Return a set of all registers overwritten by writes to the given register.
+	 * 
+	 * For example AX is always overwitten when EAX is written to, while RAX could still keep values in the high bits.
+	 */
 	[[nodiscard]] static auto registers_affected_by(std::size_t i) -> std::bitset<register_count> {
 		auto result = std::bitset<register_count>{};
 		// clang-format off
@@ -605,6 +616,10 @@ public:
 		return result;
 	}
 
+	/**
+	 * @brief Return a set of all registers related to any register in the given set of registers.
+	 * Same as calling related_registers(std::size_t i) for each register
+	 */
 	[[nodiscard]] static auto related_registers(std::bitset<register_count> registers) -> std::bitset<register_count> {
 		auto result = registers;
 		// clang-format off
@@ -737,6 +752,9 @@ public:
 		std::bitset<flag_count> flags_written{};
 	};
 
+	/**
+	 * @brief Return information about the registers and flags affected by the given instruction.
+	 */
 	[[nodiscard]] auto access(const cs_insn& info) const -> access_result {
 		auto result = access_result{};
 		assert(m_cs);
