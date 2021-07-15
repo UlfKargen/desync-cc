@@ -71,11 +71,43 @@ cmake --install .
 To build a project using the obfuscator run:
 
 ```sh
-DESYNC_CONFIG_FILE=config.cfg scripts/desync-build.sh project_path
+DESYNC_CONFIG_FILE=config.cfg scripts/desync-build.sh <project_path>
 ```
 
 To build a project and run tests after: (requires that the project implements test or check in the makefile)
 ```sh
-DESYNC_CONFIG_FILE=config.cfg scripts/desync-test.sh project_path
+DESYNC_CONFIG_FILE=config.cfg scripts/desync-test.sh <project_path>
 ```
+
+## Configuration
+
+The program accepts the following configuration strings in the config.cfg file:
+
+* **log_file** File to write printed info to
+* **verbose** If true will print for each of the print setting, regardless of their value
+* **print_config** Prints the used configuration (including any randomized seeds)
+* **print_assembly** Prints the assembly file as they were first read by the program
+* **print_cfg** Prints the control flow graph
+* **print_result** Prints the modified assembly
+* **print_stats** Prints the number of predicates inserted and the total numer of instructions in the original assembly
+* **dry_run** If true the assembly will not be overwritten, leaving any processed files as they were originally
+* **seed** Accepts "random" for a random seed or a numeric value. Affects the used distributions
+* **junk_length_distribution** Type of distribution for deciding junk-bytes to insert. Accepts "constant", "uniform" or "normal"
+* **junk_length** Value for constant distribution of junk-bytes
+* **junk_length_min** Minimum value for uniform distribution of junk-bytes
+* **junk_length_max** Maximum value for uniform distribution of junk-bytes
+* **junk_length_mean** Mean value for normal distribution of junk-bytes
+* **junk_length_stddev** Standard deviation for normal distribution of junk-bytes
+* **interval_distribution** Type of distribution for deciding number of instructions to skip between each predicate. Accepts "constant", "uniform" or "normal"
+* **interval** Value for constant interval
+* **interval_min** Minimum value for uniform distribution of intervals
+* **interval_max** Maximum value for uniform distribution of intervals
+* **interval_mean** Mean value for normal distribution of intervals
+* **interval_stddev** Standard deviation for normal distribution of intervals
+* **instruction_pattern** Regex to match what instructions to insert predicates before
+* **predicate_file** File containing predicate templates
+* **predicate_pattern** Regex to match what named predicates to use from the template file
+* **predicate_distribution** Type of distribution for deciding what predicate to use. Accepts "uniform" or "discrete"
+* **predicate_weight** Weight to use for discrete distribution of predicates. Can specify a weight for each predicate on each new line
+* **debug_cfg** If true every free register will be filled with constant -1 before every instruction in the assembly. Distributions will be ignored so every run will give the same result.
 
