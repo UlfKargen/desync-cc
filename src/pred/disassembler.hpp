@@ -391,14 +391,14 @@ public:
 	[[nodiscard]] static auto scratch_registers() -> std::bitset<register_count> {
 		static const auto bits = [] {
 			auto result = std::bitset<register_count>{};
-			result |= registers_ax();
-			//result |= registers_di(); // these registers are used to pass parameters
-			//result |= registers_si(); // they could be used when function takes less than four arguments
+			//result |= registers_ax(); // al is maybe used for certain variadic function implementations
+			//result |= registers_di(); // registers di, si, dx, cx, r8 and r9 are used to pass parameters
+			//result |= registers_si(); // they could be used when function does not use them as parameters
 			//result |= registers_dx();
 			//result |= registers_cx();
 			//result |= registers_r64(X86_REG_R8 - X86_REG_R8);
 			//result |= registers_r64(X86_REG_R9 - X86_REG_R8);
-			result |= registers_r64(X86_REG_R10 - X86_REG_R8);
+			//result |= registers_r64(X86_REG_R10 - X86_REG_R8); // r10 is used for passing static chain pointer
 			result |= registers_r64(X86_REG_R11 - X86_REG_R8);
 			return result;
 		}();
