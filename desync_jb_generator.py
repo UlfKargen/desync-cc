@@ -1,7 +1,10 @@
+#!/usr/bin/env python3
+
 import argparse
 import random
 import math
 import datetime
+import os
 from itertools import combinations
 from capstone import *
 from elftools.elf.elffile import ELFFile
@@ -9,9 +12,64 @@ from elftools.elf.elffile import ELFFile
 """
 Global boolean used for enabling debug info.
 """
-PRINT_DEBUG_INFO = False
-PRINT_BENCHMARK_INFO = False
+PRINT_DEBUG_INFO = bool(os.getenv("DESYNC_JUNK_DEBUG"))
+PRINT_BENCHMARK_INFO = bool(os.getenv("DESYNC_JUNK_BENCMARK"))
 
+INSTR_PREFIX_LIST = [
+	0x26,
+	0x2E,
+	0x36,
+	0x3E,
+	0x40,
+	0x41,
+	0x42,
+	0x43,
+	0x44,
+	0x45,
+	0x46,
+	0x47,
+	0x48,
+	0x49,
+	0x4A,
+	0x4B,
+	0x4C,
+	0x4D,
+	0x4E,
+	0x4F,
+	0x64,
+	0x65,
+	0x66,
+	0x67,
+	0x9B,
+	0xF0,
+	0xF2,
+	0xF3
+]
+
+SINGLE_BYTE_INSTR_LIST = [
+	0x50,
+	0x58,
+	0x98,
+	0x99,
+	0x9D,
+	0x9F,
+	0x9B,
+	0x9C,
+	0x9E,
+	0xC3,
+	0xCB,
+	0xD7,
+	0xF4,
+	0xF5,
+	0xF8,
+	0xF9,
+	0xFA,
+	0xFB,
+	0xFC,
+	0xFD
+]
+
+ALL_POS_SINGLE_BYTES = list(set(range(256)) - set(SINGLE_BYTE_INSTR_LIST + INSTR_PREFIX_LIST))
 
 def print_disasm_info(instr_list):
 	"""
@@ -103,37 +161,8 @@ def find_junk_bytes(pos_single_bytes, len_junk_bytes):
 	
 	return (junk_bytes, pos_single_bytes, len_junk_bytes)
 	
-	
-	
-def get_pos_single_bytes_list(instr_file_dir):	
-	"""
-	Create a list with possible starting junk bytes. Single bytes that 
-	work as instructions and prefixes have been removed.
-	"""
-	pos_single_bytes = random.sample(range(256), 256)
-	single_byte_instr_list = []
-	instr_prefix_list = []
-	with open(instr_file_dir + '/single_byte_instr_list.txt', 'r') as f:
-		byte = f.readline()
-		while byte:
-			byte = byte[:-1]
-			single_byte_instr_list.append(int(byte[2:], 16)) #Cut away the newline
-			byte = f.readline()
-	with open(instr_file_dir + '/instr_prefix_list.txt', 'r') as f:
-		prefix = f.readline()
-		while prefix:
-			prefix = prefix[:-1]
-			instr_prefix_list.append(int(prefix[2:], 16))
-			prefix = f.readline()
-	
-	"""
-	Removes the single byte instructions and prefixes.
-	"""	
-	pos_single_bytes = list(set(pos_single_bytes) - set(single_byte_instr_list + instr_prefix_list))
-	return pos_single_bytes
-	
-	
-	
+
+
 def get_desync_list(symtab):
 	"""
 	Use the symbol table to find all desynchronization symbols.
@@ -189,12 +218,10 @@ def main():
 	"""
 	parser = argparse.ArgumentParser()
 	parser.add_argument('binary', type = str)
-	parser.add_argument('instr_file_dir', type = str)
 	parser.add_argument('-v', '--verbose', action = 'store_true',
                     help='Enable debug print information')
 	args = parser.parse_args()
 	binary = args.binary
-	instr_file_dir = args.instr_file_dir
 	if args.verbose:
 		PRINT_DEBUG_INFO = True
 	else:
@@ -259,10 +286,10 @@ def main():
 			Find suitable junk bytes and insert into file.
 			"""			
 			desync_length = 0
-			pos_single_bytes = get_pos_single_bytes_list(instr_file_dir)
 			junk_bytes = []
 			JUNK_BYTE_SLOTS = int(symbol[-1]) #last character in symbol name
 			len_junk_bytes_tried = JUNK_BYTE_SLOTS
+			pos_single_bytes = ALL_POS_SINGLE_BYTES.copy()
 			tries_left = TRIES
 			desynchronized = False			
 			while (not desynchronized):
@@ -347,11 +374,13 @@ def main():
 		
 		print('Maximum desynchronization loop time (ms): {}'.format(max_symbol_loop_time))
 		print('Minimum desynchronization loop time (ms): {}'.format(min_symbol_loop_time))
-		print('Average desynchronization loop time (ms): {:.3f}\n'.format(total_symbol_loop_time / len(desync_list)))
+		if desync_list:
+			print('Average desynchronization loop time (ms): {:.3f}\n'.format(total_symbol_loop_time / len(desync_list)))
 		
 		print('Maximum amount of loops needed to desynchronize: {}'.format(max_symbol_loops))
 		print('Minimum amount of loops needed to desynchronize: {}'.format(min_symbol_loops))
-		print('Average amount of loops needed to desynchronize: {:.3f}\n'.format(total_symbol_loops / len(desync_list)))
+		if desync_list:
+			print('Average amount of loops needed to desynchronize: {:.3f}\n'.format(total_symbol_loops / len(desync_list)))
 
 if __name__ == '__main__':
 	main()
