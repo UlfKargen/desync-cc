@@ -119,14 +119,12 @@ def get_pos_single_bytes_list(instr_file_dir):
 			byte = byte[:-1]
 			single_byte_instr_list.append(int(byte[2:], 16)) #Cut away the newline
 			byte = f.readline()
-		f.close()	
 	with open(instr_file_dir + '/instr_prefix_list.txt', 'r') as f:
 		prefix = f.readline()
 		while prefix:
 			prefix = prefix[:-1]
 			instr_prefix_list.append(int(prefix[2:], 16))
 			prefix = f.readline()
-		f.close()
 	
 	"""
 	Removes the single byte instructions and prefixes.
@@ -314,7 +312,7 @@ def main():
 
 			if PRINT_BENCHMARK_INFO:				
 				end_time = datetime.datetime.now() 
-				exec_time = (end_time - start_time).microseconds / 1000
+				exec_time = (end_time - start_time).total_seconds() * 1000
 				
 				if exec_time > max_symbol_loop_time:
 					max_symbol_loop_time = exec_time
@@ -328,17 +326,15 @@ def main():
 					min_symbol_loops = loop_count
 				total_symbol_loops += loop_count
 			
-			if PRINT_DEBUG_INFO:
+			if PRINT_BENCHMARK_INFO and PRINT_DEBUG_INFO:
 				print('--- Execution time for desynchronization: {}---'.format(exec_time))
 				print('--- Loops needed: {} ---\n'.format(loop_count))
-			
-		f.close()
 	
 	"""
 	Used for benchmark: End of main()
 	"""
 	main_end_time = datetime.datetime.now()
-	main_exec_time = (main_end_time - main_start_time).seconds
+	main_exec_time = (main_end_time - main_start_time).total_seconds()
 
 	
 	if PRINT_BENCHMARK_INFO:
