@@ -85,10 +85,6 @@ private:
 
 	[[nodiscard]] static auto command_handlers() -> const std::unordered_map<std::string_view, command_handler>& {
 		static auto table = std::unordered_map<std::string_view, command_handler>{
-			{"log_file",
-				[](configuration& config, std::string_view value) -> void {
-					config.log_file = std::string{value};
-				}},
 			{"verbose",
 				[](configuration& config, std::string_view value) -> void {
 					if (value == "true") {

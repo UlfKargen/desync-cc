@@ -61,6 +61,13 @@ auto configure(desync::desynchronizer& desynchronizer, desync::configuration& co
 			return false;
 		}
 	}
+	if (const auto* const env_log_file_path = std::getenv("DESYNC_LOG_FILE")) {
+	   config.log_file = env_log_file_path;
+      if (!config.log_file.empty() && config.log_file[0] != '/') {
+         println("desync: Absolute path must be specified when using DESYNC_LOG_FILE.");
+         return false;
+      }
+	}
 	desynchronizer.configure(config);
 	return true;
 }
