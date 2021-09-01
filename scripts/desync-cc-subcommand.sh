@@ -25,8 +25,8 @@ elif [[ "$COMMAND_NAME" = "as" ]]; then
         fi
     done
 
-    # Run our tool with the -p flag.
-    ${DESYNC_COMMAND:-desync} -p "${ASSEMBLY_FILES[@]}" # Don't exit on failure.
+    # Perform opaque predicate insertion
+    "$DESYNC_BINDIR"/desync-pred "${ASSEMBLY_FILES[@]}" || exit
 
     "$@" || exit # Run the assembler.
 elif [[ "$COMMAND_NAME" = "collect2" || "$COMMAND_NAME" = "ld" ]]; then
@@ -48,8 +48,8 @@ elif [[ "$COMMAND_NAME" = "collect2" || "$COMMAND_NAME" = "ld" ]]; then
 
     "$@" || exit # Run the linker.
 
-    # Run our tool with the -j flag.
-    ${DESYNC_COMMAND:-desync} -j "$OUTPUT_FILE" # Don't exit on failure.
+    # Perform junk-byte insertion
+   "$DESYNC_BINDIR"/desync-junk "$OUTPUT_FILE" || exit
 else
     # Run any other commands as normal.
 
