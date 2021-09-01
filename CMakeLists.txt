@@ -100,16 +100,23 @@ set_target_properties(
 )
 
 add_custom_target(
-	symlink-desync-file ALL
-	COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/desync/desync" "${CMAKE_INSTALL_BINDIR}/desync"
-	COMMENT "Creating symlink to desync file at ${CMAKE_INSTALL_BINDIR}/desync"
+	copy-desync-cc-file ALL
+	COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/scripts/desync-cc.sh" "${CMAKE_INSTALL_BINDIR}/desync-cc"
+	COMMENT "Copying desync-cc.sh to ${CMAKE_INSTALL_BINDIR}/desync-cc"
 	DEPENDS desync-pred
 )
 
 add_custom_target(
-	symlink-desync-junk-file ALL
-	COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/desync/desync-junk" "${CMAKE_INSTALL_BINDIR}/desync-junk"
-	COMMENT "Creating symlink to desync-junk file at ${CMAKE_INSTALL_BINDIR}/desync-junk"
+	copy-desync-cc-subcommand-file ALL
+	COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/scripts/desync-cc-subcommand.sh" "${CMAKE_INSTALL_BINDIR}/desync-cc-subcommand"
+	COMMENT "Copying desync-cc-subcommand.sh to ${CMAKE_INSTALL_BINDIR}/desync-cc-subcommand"
+	DEPENDS desync-pred
+)
+
+add_custom_target(
+	copy-desync-junk-file ALL
+	COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/desync_jb_generator.py" "${CMAKE_INSTALL_BINDIR}/desync-junk"
+	COMMENT "Copying desync_jb_generator.py to ${CMAKE_INSTALL_BINDIR}/desync-junk"
 	DEPENDS desync-pred
 )
 
