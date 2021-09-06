@@ -41,7 +41,7 @@ public:
 
 	auto configure(const configuration& config) -> void {
 		if (!config.log_file.empty()) {
-			m_logger.open(config.base_dir + config.log_file);
+			m_logger.open(config.log_file);
 		}
 		m_verbose = config.verbose;
 		m_print_config = config.print_config;
@@ -51,6 +51,7 @@ public:
 		m_print_stats = config.print_stats;
 		m_instruction_pattern.assign(config.instruction_pattern);
 		m_debug_cfg = config.debug_cfg;
+		m_use_spilling = config.use_spilling;
 		const auto seed = configure_seed(config);
 		configure_junk_length_distribution(config);
 		configure_interval_distribution(config);
@@ -91,8 +92,8 @@ public:
 	}
 
 private:
-	static constexpr auto desync_label_name = std::string_view{"DESYNC"};
 	static constexpr auto desync_label_replacement_index = std::numeric_limits<std::size_t>::max();
+	static constexpr auto desync_restore_point_index = desync_label_replacement_index - 1;
 
 	[[nodiscard]] static auto get_instruction_start(std::string_view assembly, const control_flow_graph::instruction& instruction) -> std::size_t {
 		if (instruction.prefix.empty()){
@@ -113,22 +114,55 @@ private:
 			const auto& predicate = m_predicates[generate_predicate()];
 			while (i < instructions.size()) {
 				if (std::regex_match(std::string{instructions[i].string}, m_instruction_pattern)) {
-					if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_disassembler, m_random_number_generator)) {
-						const auto assembly_index = get_instruction_start(assembly, instructions[i]);
-						// original assembly is used since some non-instruction assembly is skipped during parsing
-						stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n';
-						assembly_rest = assembly_index;
-						const auto junk_length = generate_junk_length();
-						const auto junk_label = util::concat("desyncpoint", filehash,  m_predicate_count, '_', junk_length);
-						const auto jump_label = util::concat(".Ldesyncjump", filehash, m_predicate_count);
-						++m_predicate_count;
-						predicate.apply(stream, jump_label, std::span{*arguments});
-						stream << '\n' << junk_label << ":\n";
-						for (auto n = std::size_t{0}; n < junk_length; ++n) {
-							stream << "nop\n";
+					if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_random_number_generator)) {
+						auto missing_arg_count = predicate.parameters().size() - arguments->size();
+						if(missing_arg_count == 0 || m_use_spilling) {
+							auto to_spill = std::optional<std::vector<std::string>>{};
+							auto argument_names = std::vector<std::string>{};
+							for(auto idx : *arguments) {
+								argument_names.emplace_back(m_disassembler.register_name(idx));
+							}
+							// if we use register spilling, allocate additional registers as spilled ones
+							if(missing_arg_count) {
+								auto already_allocated = std::bitset<disassembler::register_count>{};
+								for(auto idx : *arguments) {
+									already_allocated.set(idx);
+								}
+								auto& parent_registers = to_spill.emplace();
+								auto allocated_regs = predicate.pick_registers(
+									predicate.parameters().last(missing_arg_count), ~already_allocated, m_random_number_generator);
+								if(allocated_regs.size() < missing_arg_count) {
+									// failed to find suitable registers to spill
+									++i;
+									continue;
+								}
+								for(auto idx : allocated_regs) {
+									argument_names.emplace_back(m_disassembler.register_name(idx));
+									parent_registers.emplace_back(m_disassembler.register_name(disassembler::parent_register(idx)));
+								}
+							}
+							const auto assembly_index = get_instruction_start(assembly, instructions[i]);
+							// original assembly is used since some non-instruction assembly is skipped during parsing
+							stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n';
+							assembly_rest = assembly_index;
+							const auto junk_length = generate_junk_length();
+							const auto junk_label = util::concat("desyncpoint", filehash,  m_predicate_count, '_', junk_length);
+							const auto jump_label = util::concat(".Ldesyncjump", filehash, m_predicate_count);
+							++m_predicate_count;
+							// spill registers to stack if needed
+							if(to_spill) {
+								for(const auto& r : *to_spill) {
+									stream << "push %" << r << std::endl;
+								}
+							}
+							predicate.apply(stream, jump_label, std::span{argument_names}, to_spill);
+							stream << '\n' << junk_label << ":\n";
+							for (auto n = std::size_t{0}; n < junk_length; ++n) {
+								stream << "nop\n";
+							}
+							stream << jump_label << ":\n";
+							break;
 						}
-						stream << jump_label << ":\n";
-						break;
 					}
 				}
 				++i;
@@ -233,10 +267,14 @@ private:
 
 			auto piece_begin = std::size_t{0};
 			for (auto i = std::size_t{0}; i < body.size(); ++i) {
-				if (body.compare(i, desync_label_name.size(), desync_label_name) == 0) {
+				if(i == parsed_predicate.restore_point_ofs) {
+					m_replacement_indices.push_back(desync_restore_point_index);
+					m_pieces.push_back(body.substr(piece_begin, i - piece_begin));
+					piece_begin = i;
+				} else if (body.compare(i, predicate_parser::desync_label_name.size(), predicate_parser::desync_label_name) == 0) {
 					m_replacement_indices.push_back(desync_label_replacement_index);
 					m_pieces.push_back(body.substr(piece_begin, i - piece_begin));
-					i += desync_label_name.size();
+					i += predicate_parser::desync_label_name.size();
 					piece_begin = i;
 					--i;
 				} else {
@@ -269,9 +307,9 @@ private:
 			return result;
 		}
 
-		[[nodiscard]] auto find_arguments(std::bitset<disassembler::register_count> free_registers, std::bitset<disassembler::flag_count> free_flags,
-			const disassembler& disassembler, std::mt19937& g) const -> std::optional<std::vector<std::string>> {
-			auto result = std::optional<std::vector<std::string>>{};
+		[[nodiscard]] auto find_arguments(std::bitset<disassembler::register_count> free_registers, std::bitset<disassembler::flag_count> free_flags, std::mt19937& g) const -> std::optional<std::vector<std::size_t>> {
+			auto result = std::optional<std::vector<std::size_t>>{};
+
 			if ((free_flags & m_required_flags) != m_required_flags){
 				return result; // flags needed by predicate are not free
 			}
@@ -281,8 +319,17 @@ private:
 			if (free_registers.count() < m_parameters.size()){
 				return result; // not enough free registers
 			}
-			auto& arguments = result.emplace();
-			for (const auto& parameter : m_parameters) {
+			result.emplace(pick_registers(std::span{m_parameters}, free_registers, g));
+
+			return result;
+		}
+
+		/**
+		 * @brief Randomly choose one register per argument. Stops at first non-assignable argument and returns partial result.
+		 */
+		[[nodiscard]] auto pick_registers(std::span<const parameter_type> params, std::bitset<disassembler::register_count> free_registers, std::mt19937& g) const -> std::vector<std::size_t> {
+			std::vector<std::size_t> result{};
+			for (const auto& parameter : params) {
 				auto found = false;
 				// randomize order of registers
 				auto order = predicate::index_list();
@@ -297,22 +344,22 @@ private:
 						if ((m_used_registers & related_regs).count() > 0){
 							continue; // register would affect a register needed by predicate, don't use
 						}
-						// register is fine to use, add to list of arguments
-						arguments.emplace_back(disassembler.register_name(*it));
+						// register is fine to use, add to result
+						result.push_back(*it);
 						free_registers &= ~related_regs;
 						found = true;
 						break;
 					}
 				}
 				if (!found) {
-					result.reset(); // failed to find register
+					// return partial result
 					break;
 				}
 			}
 			return result;
 		}
 
-		auto apply(std::ostream& out, std::string_view label, std::span<const std::string> arguments) const -> void {
+		auto apply(std::ostream& out, std::string_view label, std::span<const std::string> arguments, const std::optional<std::vector<std::string>>& to_restore = std::nullopt) const -> void {
 			assert(arguments.size() == m_parameters.size());
 			assert(m_pieces.size() == m_replacement_indices.size() + 1);
 
@@ -322,6 +369,12 @@ private:
 				out << piece;
 				if (replacement_index == desync_label_replacement_index) {
 					out << label;
+				} else if (replacement_index == desync_restore_point_index) {
+					if (to_restore) {
+						for(const auto& r : *to_restore | std::views::reverse) {
+							out << "pop %" << r << std::endl;
+						}
+					}
 				} else {
 					assert(replacement_index < arguments.size());
 					out << arguments[replacement_index];
@@ -449,7 +502,8 @@ private:
 			"CONFIGURATION\n"
 			"===================================================================\n"
 			"seed ", seed, "\n"
-			"instruction_pattern ", config.instruction_pattern);
+			"instruction_pattern ", config.instruction_pattern,
+			"use_spilling", config.use_spilling ? "true" : "false");
 		switch (m_junk_length_distribution) {
 			case configuration::junk_length_distribution_type::constant:
 				m_logger.writeln(
@@ -662,6 +716,7 @@ private:
 	bool m_print_result = false;
 	bool m_print_stats = false;
 	bool m_debug_cfg = false;
+	bool m_use_spilling = false;
 	std::size_t m_predicate_count;
 
 };

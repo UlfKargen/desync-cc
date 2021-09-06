@@ -68,6 +68,7 @@ struct configuration final {
 	bool print_stats = false;
 	bool dry_run = false;
 	bool debug_cfg = false;
+	bool use_spilling = false;
 
 	auto parse_string(std::string_view config_string) -> void {
 		for (const auto [name, value] : configuration_parser::parse_commands(config_string)) {
@@ -161,6 +162,16 @@ private:
 						config.seed.reset();
 					} else {
 						config.seed.emplace(std::stoul(std::string{value}));
+					}
+				}},
+			{"use_spilling",
+				[](configuration& config, std::string_view value) -> void {
+					if (value == "true") {
+						config.use_spilling = true;
+					} else if (value == "false") {
+						config.use_spilling = false;
+					} else {
+						throw error{"Invalid register spilling setting \"", value, "\""};
 					}
 				}},
 			{"junk_length_distribution",

@@ -11,6 +11,7 @@
 #include <stdexcept>           // std::runtime_error
 #include <string>              // std::string, std::to_string
 #include <string_view>         // std::basic_string_view
+#include <sstream>             // std::ostringstream
 
 namespace desync {
 
@@ -685,6 +686,77 @@ public:
 		}
 		// clang-format on
 		return result;
+	}
+
+	/**
+	 * @brief Return the containing 64-bit register for a given register
+	 */
+	[[nodiscard]] static auto parent_register(unsigned index) -> unsigned {
+		switch (index) {
+			//AX
+			case register_index(X86_REG_RAX): 
+			case register_index(X86_REG_EAX):
+			case register_index(X86_REG_AX):
+			case register_index(X86_REG_AH):
+			case register_index(X86_REG_AL):
+				return register_index(X86_REG_RAX);
+			//BX
+			case register_index(X86_REG_RBX):
+			case register_index(X86_REG_EBX):
+			case register_index(X86_REG_BX):
+			case register_index(X86_REG_BH):
+			case register_index(X86_REG_BL):
+				return register_index(X86_REG_RBX);
+			//CX
+			case register_index(X86_REG_RCX):
+			case register_index(X86_REG_ECX):
+			case register_index(X86_REG_CX):
+			case register_index(X86_REG_CH):
+			case register_index(X86_REG_CL):
+				return register_index(X86_REG_RCX);
+			//DX
+			case register_index(X86_REG_RDX):
+			case register_index(X86_REG_EDX):
+			case register_index(X86_REG_DX):
+			case register_index(X86_REG_DH):
+			case register_index(X86_REG_DL):
+				return register_index(X86_REG_RDX);
+			//SI
+			case register_index(X86_REG_RSI):
+			case register_index(X86_REG_ESI): 
+			case register_index(X86_REG_SI): 
+			case register_index(X86_REG_SIL):
+				return register_index(X86_REG_RSI);
+			//DI
+			case register_index(X86_REG_RDI):
+			case register_index(X86_REG_EDI):
+			case register_index(X86_REG_DI): 
+			case register_index(X86_REG_DIL):
+				return register_index(X86_REG_RDI);
+			//BP
+			case register_index(X86_REG_RBP):
+			case register_index(X86_REG_EBP):
+			case register_index(X86_REG_BP):
+			case register_index(X86_REG_BPL):
+				return register_index(X86_REG_RBP);
+			//SP
+			case register_index(X86_REG_RSP):
+			case register_index(X86_REG_ESP):
+			case register_index(X86_REG_SP):
+			case register_index(X86_REG_SPL):
+				return register_index(X86_REG_RSP);
+		}
+		
+		for (auto i = std::size_t{0}; i < num_extra_64_registers; ++i) {
+			if (index == register_index(X86_REG_R8) + i  ||
+ 				 index == register_index(X86_REG_R8D) + i ||
+				 index == register_index(X86_REG_R8W) + i ||
+				 index == register_index(X86_REG_R8B) + i) {
+				return register_index(X86_REG_R8) + i;
+			}
+		}
+
+		throw error{("invalid register index")};
 	}
 
 	[[nodiscard]] auto registers_string(const std::bitset<register_count>& registers) const -> std::string {

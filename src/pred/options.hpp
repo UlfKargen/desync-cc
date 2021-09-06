@@ -36,6 +36,7 @@ struct options final {
 	bool version = false;
 	bool verbose = false;
 	bool dry_run = false;
+	bool use_spilling = false;
 	std::string_view config_string{};
 	std::string_view config_file{};
 	std::string_view log_file{};

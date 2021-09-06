@@ -15,6 +15,8 @@ namespace desync {
 
 class predicate_parser final {
 public:
+	static constexpr auto desync_label_name = std::string_view{"DESYNC"};
+
 	struct error final : std::runtime_error {
 		[[nodiscard]] explicit error(std::string_view filename, std::size_t line, std::size_t column, const auto&... args)
 			: std::runtime_error(util::concat(filename, ':', line, ':', column, ": ", args...)) {}
@@ -25,9 +27,16 @@ public:
 		std::string_view type{};
 	};
 
+	struct predicate_body final {
+		std::string_view code{};
+		std::size_t restore_point_ofs{};
+	};
+
 	struct predicate final {
 		std::string_view name{};
 		std::string_view body{};
+		// Point for inserting register restoration instructions, if register spilling is used
+		std::size_t restore_point_ofs{};
 		std::vector<parameter> parameters{};
 	};
 
@@ -44,7 +53,8 @@ private:
 		: m_filename(filename)
 		, m_code(code)
 		, m_it(code.begin())
-		, m_end(code.end()) {}
+		, m_end(code.end())
+		, m_line_begin(0) {}
 
 	[[nodiscard]] auto read_predicates() -> std::vector<predicate> {
 		auto result = std::vector<predicate>{};
@@ -67,7 +77,9 @@ private:
 		auto result = predicate{};
 		result.name = read_identifier();
 		result.parameters = read_parameters();
-		result.body = read_predicate_body();
+		auto body = read_predicate_body();
+		result.body = body.code;
+		result.restore_point_ofs = body.restore_point_ofs;
 		return result;
 	}
 
@@ -124,13 +136,14 @@ private:
 		return parameter{name, type};
 	}
 
-	[[nodiscard]] auto read_predicate_body() -> std::string_view {
+	[[nodiscard]] auto read_predicate_body() -> predicate_body {
 		skip_whitespace();
 		if (at_end() || peek() != '{') {
 			throw make_error("Expected a predicate body.");
 		}
 		advance();
 		const auto begin = current_position();
+		std::size_t restore_point_ofs{std::string::npos};
 		while (true) {
 			if (at_end()) {
 				throw make_error("Expected end of predicate body '}'");
@@ -139,6 +152,12 @@ private:
 				break;
 			}
 			if (peek() == '\n') {
+				if(check_if_jump()) {
+					if(restore_point_ofs != std::string::npos) {
+						throw make_error("Malfromed predicate body (multiple " + std::string{desync_label_name} + " labels)");
+					}
+					restore_point_ofs = m_line_begin - begin;
+				}
 				advance_line();
 			} else {
 				advance();
@@ -146,7 +165,14 @@ private:
 		}
 		const auto end = current_position();
 		advance();
-		return m_code.substr(begin, end - begin);
+		if(restore_point_ofs == std::string::npos) {
+			throw make_error("Malfromed predicate body (no " + std::string{desync_label_name} + " label present)");
+		}
+		return {m_code.substr(begin, end - begin), restore_point_ofs};
+	}
+
+	[[nodiscard]] auto check_if_jump() -> bool {
+		return m_code.substr(m_line_begin, current_position() - m_line_begin).find(desync_label_name) != std::string::npos;
 	}
 
 	[[nodiscard]] auto current_position() const -> std::size_t {
