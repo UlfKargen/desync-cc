@@ -1,17 +1,19 @@
-predicate xorl_jz(reg_a: r32) {
+predicate always xorl_jz(reg_a: r32) {
     xorl %reg_a, %reg_a
     jz DESYNC
 }
 
-predicate xorq_jz(reg_a: r64) {
+predicate always xorq_jz(reg_a: r64) {
     xorq %reg_a, %reg_a
     jz DESYNC
 }
 
-predicate test(reg_a: r32) {
-    movl $0, %reg_a
+predicate never xorq_inc_jz(reg_a: r64) {
+    xorq %reg_a, %reg_a
+    inc %reg_a
+    jz DESYNC
 }
 
-predicate jump_only() {
+predicate always jump_only() {
     jmp DESYNC
 }

@@ -9,12 +9,6 @@ from itertools import combinations
 from capstone import *
 from elftools.elf.elffile import ELFFile
 
-"""
-Global boolean used for enabling debug info.
-"""
-PRINT_DEBUG_INFO = bool(os.getenv("DESYNC_JUNK_DEBUG"))
-PRINT_BENCHMARK_INFO = bool(os.getenv("DESYNC_JUNK_BENCMARK"))
-
 INSTR_PREFIX_LIST = [
 	0x26,
 	0x2E,
@@ -71,6 +65,12 @@ SINGLE_BYTE_INSTR_LIST = [
 
 ALL_POS_SINGLE_BYTES = list(set(range(256)) - set(SINGLE_BYTE_INSTR_LIST + INSTR_PREFIX_LIST))
 
+class DesyncPoint:
+	def __init__(self, index, size, offset):
+		self.index = index
+		self.size = size
+		self.offset = offset
+
 def print_disasm_info(instr_list):
 	"""
 	Prints the instructions in readable format. Used for debugging.
@@ -85,7 +85,7 @@ def print_disasm_info(instr_list):
 
 
 
-def get_disasm_length(instr_list):
+def get_disasm_length(instr_list, verbose=False):
 	"""
 	Return the length of the disassembled code, measured in bytes.
 	"""
@@ -94,7 +94,7 @@ def get_disasm_length(instr_list):
 		last_instr = instr_list[-1]
 		disasm_length = last_instr.address + last_instr.size		
 	else:
-		if PRINT_DEBUG_INFO:
+		if verbose:
 			print('Error: No bytes correctly disassembled :(')		
 	return disasm_length		
 
@@ -111,20 +111,35 @@ def get_disasm_instr_list(code):
 		instr_list.append(i)
 	return instr_list
 	
-	
 
-def is_desynchronized(org_instr_list, desync_instr_list, num_junk_bytes):
+	
+def get_possible_fake_targets(instr_list, max_junk_size):
+	"""
+	Returns a list of possible jump targets for fake (never taken) branches,
+	such that the jump will result in a desynchronization
+	"""
+	result = []
+	for instr in instr_list:
+		for i in range(1, instr.size):
+			offset = instr.address + i
+			if offset >= max_junk_size:
+				return result
+			result.append(offset)
+	return result
+
+
+
+def is_desynchronized(desync_instr_list, num_junk_bytes):
 	"""
 	Checks if there is an instruction at the immediate position after
 	junk bytes. If so, the file have not been desynchronized.
 	"""
-	org_address = org_instr_list[num_junk_bytes].address
 	for instr in desync_instr_list:
-		if instr.address == org_address:
+		if instr.address == num_junk_bytes:
 			return False
-		elif instr.address > org_address:
+		elif instr.address > num_junk_bytes:
 			return True
-			
+
 			
 	
 def insert_junk_bytes(code, junk_bytes, len_junk_bytes):
@@ -159,51 +174,40 @@ def find_junk_bytes(pos_single_bytes, len_junk_bytes):
 	elif pos_single_bytes:				
 		junk_bytes.append(pos_single_bytes.pop(-1))
 	
-	return (junk_bytes, pos_single_bytes, len_junk_bytes)
+	return (junk_bytes, pos_single_bytes)
 	
 
 
-def get_desync_list(symtab):
+def get_desync_list(symtab, elf, verbose=False):
 	"""
 	Use the symbol table to find all desynchronization symbols.
 	Name standard: desyncpoint_[index]_[size]
 	"""
 	desync_list = []
+	max_junk_size = 0
 	for symbol in symtab.iter_symbols():
 		if 'desyncpoint' in symbol.name:
-			desync_list.append(symbol.name)
-			if PRINT_DEBUG_INFO:
+			(_, index, size) = symbol.name.split('_')
+			max_junk_size = max(max_junk_size, int(size))
+
+			sym_VA = symbol.entry['st_value']
+			sym_idx = symbol.entry['st_shndx']
+			section = elf.get_section(sym_idx)
+			section_offset = section['sh_offset']
+			section_VA = section['sh_addr']
+			offset = sym_VA - section_VA + section_offset
+
+			desync_list.append(DesyncPoint(int(index), int(size), offset))
+
+			if verbose:
 				print('Appended: {}'.format(symbol.name))
 	"""
 	Desyncpoints must be handled in descending order.
 	"""
-	desync_list.sort(key = lambda x: x[:-2], reverse=True)			
-	return desync_list
+	desync_list.sort(key = lambda x: x.index, reverse=True)		
+	return (desync_list, max_junk_size)
 	
 	
-	
-def get_sym_offsets(desync_list, symtab, elf):
-	"""
-	Get the offsets for each desynchronization point.
-	Return: {'desyncpoint', offset}
-	"""
-	sym_offsets = {}
-	for symbol in desync_list:
-		syms = symtab.get_symbol_by_name(symbol)		
-		assert(len(syms) == 1)
-		sym = syms[0]
-		sym_VA = sym['st_value']
-		sym_idx = sym['st_shndx']
-		section = elf.get_section(sym_idx)
-		section_offset = section['sh_offset']
-		section_VA = section['sh_addr']
-		sym_offset = sym_VA - section_VA + section_offset
-		sym_offsets[symbol] = sym_offset	
-		if PRINT_DEBUG_INFO:
-			print('Offset for symbol [{}]: 0x{:x}'.format(symbol, sym_offset))
-	return sym_offsets
-	
-		
 		
 def main():
 	"""
@@ -212,6 +216,9 @@ def main():
 	main_start_time = datetime.datetime.now()
 	
 	
+	PRINT_DEBUG_INFO = bool(os.getenv("DESYNC_JUNK_DEBUG"))
+	PRINT_BENCHMARK_INFO = bool(os.getenv("DESYNC_JUNK_BENCMARK"))
+
 	"""
 	Retrieve the arguments, namely the name of the binary that is to be
 	desynchronized, and a flag -v (--verbose) used for debugging info.
@@ -224,8 +231,6 @@ def main():
 	binary = args.binary
 	if args.verbose:
 		PRINT_DEBUG_INFO = True
-	else:
-		PRINT_DEBUG_INFO = False
 	
 	"""
 	Constants used in the main loop
@@ -250,8 +255,8 @@ def main():
 	with open(binary, 'r+b') as f:
 		elf = ELFFile(f)
 		symtab = elf.get_section_by_name('.symtab')
-		desync_list = get_desync_list(symtab)
-		sym_offsets = get_sym_offsets(desync_list, symtab, elf)			
+		desync_list, max_junk_size = get_desync_list(symtab, elf, PRINT_DEBUG_INFO)
+		assert max_junk_size < 256
 		
 		for symbol in desync_list:			
 			"""
@@ -263,7 +268,7 @@ def main():
 			"""
 			Extract a code snippet of length READ_LENGTH.
 			"""			
-			f.seek(sym_offsets[symbol])
+			f.seek(symbol.offset)
 			code = f.read(READ_LENGTH)									
 						
 			"""
@@ -271,71 +276,108 @@ def main():
 			bytes.
 			"""
 			org_instr_list = get_disasm_instr_list(code)
-			org_length = get_disasm_length(org_instr_list)
+			org_length = get_disasm_length(org_instr_list, PRINT_DEBUG_INFO)	
 						
 			if PRINT_DEBUG_INFO:				
 				print('\n-------------------------------------')
-				print('Desynchronizing point: {}'.format(symbol))
+				print('Desynchronizing point # {}'.format(symbol.index))
 				print('-------------------------------------')
 				print('--- Original Assembly Code ---')
 				print_disasm_info(org_instr_list)
 				print('\n')
 				
-							
-			"""
-			Find suitable junk bytes and insert into file.
-			"""			
-			desync_length = 0
-			junk_bytes = []
-			JUNK_BYTE_SLOTS = int(symbol[-1]) #last character in symbol name
-			len_junk_bytes_tried = JUNK_BYTE_SLOTS
-			pos_single_bytes = ALL_POS_SINGLE_BYTES.copy()
-			tries_left = TRIES
-			desynchronized = False			
-			while (not desynchronized):
-				loop_count += 1
-				if tries_left == 0:
-					tries_left = TRIES
-					len_junk_bytes_tried -= 1					
-				(junk_bytes, pos_single_bytes, len_junk_bytes_tried) = find_junk_bytes(pos_single_bytes, len_junk_bytes_tried)
-				tries_left -= 1
-				
-				if junk_bytes:
-					desync_code = insert_junk_bytes(code, junk_bytes, JUNK_BYTE_SLOTS)
-					desync_instr_list = get_disasm_instr_list(desync_code)
+			if not symbol.size:
+				"""
+				Find suitable target for fake branch, and insert into file
+				"""
+				if PRINT_DEBUG_INFO:
+					print('*** Desynch point type: NEVER TAKEN ***\n')
+
+				possible_jump_targets = get_possible_fake_targets(org_instr_list, max_junk_size)
+				random.shuffle(possible_jump_targets)
+				for target in possible_jump_targets:
+					desync_instr_list = get_disasm_instr_list(code[target:])
 					desync_length = get_disasm_length(desync_instr_list)
-					
-					if PRINT_DEBUG_INFO:						
-						junk_print = ''
-						for junk_byte in junk_bytes:
-							junk_print += str(bytes([junk_byte]))		
-						print('Trying to desynchronize with junk bytes: ' + junk_print)
-						print('--- Desynchronized Code ---')
-						print_disasm_info(desync_instr_list)													
-						print('\n--- Org_length: {} ---'.format(org_length))
-						print('--- Desync_length: {} ---\n'.format(desync_length))						
-					
-					desynchronized = (desync_length == org_length) and is_desynchronized(org_instr_list, desync_instr_list, JUNK_BYTE_SLOTS)					
-				else:					
-					break
-			
-			"""
-			Write the changes to the file.			
-			"""
-			if junk_bytes:
-				desynced += 1
-				if PRINT_DEBUG_INFO:
-					print('**********\n Success for symbol {} \n**********\n'.format(symbol))				
-				i = 1		
-				for junk_byte in reversed(junk_bytes):
-					f.seek(sym_offsets[symbol]+JUNK_BYTE_SLOTS-i)
-					f.write(bytes([junk_byte]))		
-					i += 1
+					if desync_length >= org_length - target:
+						if PRINT_DEBUG_INFO:
+							print('Found desynchronizing jump offset: {}\n'.format(target))
+							print('--- Desynchronized Code ---')
+							print_disasm_info(desync_instr_list)
+						break
+				else:
+					# Failed to find a jump target that gives valid desynchronized assembly.
+					# Try to pick a target that at least results in valid (non-desynchronized) code.
+					if PRINT_DEBUG_INFO:
+						print('No desynchronizing jump offset found...', end = '')
+
+					jump_targets = [i for i in range(1, max_junk_size) if i not in possible_jump_targets]
+					if not jump_targets:
+						# Not possible to find valid targets, just pick a random target
+						if PRINT_DEBUG_INFO:
+							print('and no valid offset found...', end = '')
+						jump_targets = range(1, max_junk_size)
+					target = random.sample(jump_targets, 1)[0]
+					if PRINT_DEBUG_INFO:
+						print('picked offset {}'.format(target))
+
+				f.seek(symbol.offset - 1)
+				f.write(bytes([target]))
 			else:
-				undesynced += 1
+				"""
+				Find suitable junk bytes and insert into file.
+				"""
+
 				if PRINT_DEBUG_INFO:
-					print('**********\n Failure for symbol {} \n ********** '.format(symbol))
-					print('No suitable junk bytes found')
+					print('*** Desynch point type: ALWAYS TAKEN ***\n')
+
+				desync_length = 0
+				junk_bytes = []
+				junk_bytes_size = symbol.size
+				len_junk_bytes_tried = junk_bytes_size
+				pos_single_bytes = ALL_POS_SINGLE_BYTES.copy()
+				tries_left = TRIES
+				desynchronized = False			
+				while (not desynchronized):
+					loop_count += 1
+					if tries_left == 0:
+						tries_left = TRIES
+						len_junk_bytes_tried -= 1					
+					(junk_bytes, pos_single_bytes) = find_junk_bytes(pos_single_bytes, len_junk_bytes_tried)
+					tries_left -= 1
+					
+					if junk_bytes:
+						desync_code = insert_junk_bytes(code, junk_bytes, junk_bytes_size)
+						desync_instr_list = get_disasm_instr_list(desync_code)
+						desync_length = get_disasm_length(desync_instr_list)
+						
+						if PRINT_DEBUG_INFO:						
+							junk_print = ''
+							for junk_byte in junk_bytes:
+								junk_print += bytes([junk_byte]).hex()
+							print('Trying to desynchronize with junk bytes: ' + junk_print)
+							print('--- Desynchronized Code ---')
+							print_disasm_info(desync_instr_list)													
+							print('\n--- Org_length: {} ---'.format(org_length))
+							print('--- Desync_length: {} ---\n'.format(desync_length))						
+						
+						desynchronized = (desync_length >= org_length) and is_desynchronized(desync_instr_list, junk_bytes_size)					
+					else:					
+						break
+				
+				"""
+				Write the changes to the file.			
+				"""
+				if junk_bytes:
+					desynced += 1
+					if PRINT_DEBUG_INFO:
+						print('**********\n Success for symbol # {} \n**********\n'.format(symbol.index))				
+					f.seek(symbol.offset)
+					f.write(bytes(junk_bytes))
+				else:
+					undesynced += 1
+					if PRINT_DEBUG_INFO:
+						print('**********\n Failure for symbol # {} \n************'.format(symbol.index))
+						print('No suitable junk bytes found\n')
 
 			if PRINT_BENCHMARK_INFO:				
 				end_time = datetime.datetime.now() 

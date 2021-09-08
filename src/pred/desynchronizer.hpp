@@ -52,6 +52,7 @@ public:
 		m_instruction_pattern.assign(config.instruction_pattern);
 		m_debug_cfg = config.debug_cfg;
 		m_use_spilling = config.use_spilling;
+		m_always_taken_fraction = config.always_taken_fraction;
 		const auto seed = configure_seed(config);
 		configure_junk_length_distribution(config);
 		configure_interval_distribution(config);
@@ -63,7 +64,7 @@ public:
 
 	[[nodiscard]] auto apply_predicates(std::string_view filename, std::string_view assembly, std::string_view filehash) -> std::string {
 		auto result = std::string{};
-		if (m_predicates.empty()) {
+		if (m_predicates_always.empty() && m_predicates_never.empty()) {
 			m_logger.writeln("Warning: No predicates to apply.");
 			result = assembly;
 		} else {
@@ -111,7 +112,10 @@ private:
 		auto next = std::size_t{0};
 		m_predicate_count = std::size_t{0};
 		for (auto i = std::size_t{0}; i < instructions.size(); i = next) {
-			const auto& predicate = m_predicates[generate_predicate()];
+			double r = static_cast<double>(m_random_number_generator() -  m_random_number_generator.min()) / static_cast<double>(m_random_number_generator.max());
+			bool is_taken_branch = (r < m_always_taken_fraction && m_predicates_always.size() > 0) || m_predicates_never.size() == 0;
+			const auto& predicate = generate_predicate(is_taken_branch);
+
 			while (i < instructions.size()) {
 				if (std::regex_match(std::string{instructions[i].string}, m_instruction_pattern)) {
 					if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_random_number_generator)) {
@@ -145,8 +149,8 @@ private:
 							// original assembly is used since some non-instruction assembly is skipped during parsing
 							stream << assembly.substr(assembly_rest, assembly_index - assembly_rest) << '\n';
 							assembly_rest = assembly_index;
-							const auto junk_length = generate_junk_length();
-							const auto junk_label = util::concat("desyncpoint", filehash,  m_predicate_count, '_', junk_length);
+							const auto junk_length = is_taken_branch ? generate_junk_length() : 0;
+							const auto junk_label = util::concat("desyncpoint", filehash, '_', m_predicate_count, '_', junk_length);
 							const auto jump_label = util::concat(".Ldesyncjump", filehash, m_predicate_count);
 							++m_predicate_count;
 							// spill registers to stack if needed
@@ -359,7 +363,10 @@ private:
 			return result;
 		}
 
-		auto apply(std::ostream& out, std::string_view label, std::span<const std::string> arguments, const std::optional<std::vector<std::string>>& to_restore = std::nullopt) const -> void {
+		auto apply(std::ostream& out, 
+		           std::string_view label, 
+				   std::span<const std::string> arguments, 
+				   const std::optional<std::vector<std::string>>& to_restore = std::nullopt) const -> void {
 			assert(arguments.size() == m_parameters.size());
 			assert(m_pieces.size() == m_replacement_indices.size() + 1);
 
@@ -503,7 +510,8 @@ private:
 			"===================================================================\n"
 			"seed ", seed, "\n"
 			"instruction_pattern ", config.instruction_pattern,
-			"use_spilling", config.use_spilling ? "true" : "false");
+			"use_spilling ", config.use_spilling ? "true\n" : "false\n",
+			"always_taken_fraction ", config.always_taken_fraction, "\n");
 		switch (m_junk_length_distribution) {
 			case configuration::junk_length_distribution_type::constant:
 				m_logger.writeln(
@@ -561,7 +569,12 @@ private:
 			"===================================================================\n"
 			"PREDICATES\n"
 			"===================================================================");
-		for (const auto& predicate : m_predicates) {
+		m_logger.writeln("=== ALWAYS TAKEN ===\n");
+		for (const auto& predicate : m_predicates_always) {
+			m_logger.writeln("predicate ", predicate.name());
+		}
+		m_logger.writeln("=== NEVER TAKEN ===\n");
+		for (const auto& predicate : m_predicates_never) {
 			m_logger.writeln("predicate ", predicate.name());
 		}
 		// clang-format on
@@ -618,7 +631,8 @@ private:
 
 	auto configure_predicates(const configuration& config) -> void {
 		const auto pattern = std::regex{config.predicate_pattern};
-		auto weights = std::vector<double>{};
+		auto weights_always = std::vector<double>{};
+		auto weights_never = std::vector<double>{};
 		auto source_files = std::unordered_map<std::string_view, std::string_view>{};
 		for (const auto& predicate_file : config.predicate_files) {
 			auto filepath = config.base_dir;
@@ -635,12 +649,22 @@ private:
 						continue;
 					}
 
-					auto& weight = weights.emplace_back(1.0);
+					bool is_type_always{};
+					auto pred = predicate(std::move(name), parsed_predicate, predicate_file, m_assembler, m_disassembler);
+					if (parsed_predicate.type == "always") {
+						m_predicates_always.emplace_back(std::move(pred));
+						is_type_always = true;
+					} else if (parsed_predicate.type == "never") {
+						m_predicates_never.emplace_back(std::move(pred));
+						is_type_always = false;
+					} else {
+						throw error{predicate_file, ": Predicate \"",  parsed_predicate.name, "\": Invalid predicate type \"", parsed_predicate.type, "\""};
+					}
+
+					auto& weight = is_type_always ? weights_always.emplace_back(1.0) : weights_never.emplace_back(1.0);
 					if (const auto weight_it = config.predicate_weights.find(std::string{parsed_predicate.name}); weight_it != config.predicate_weights.end()) {
 						weight = weight_it->second;
 					}
-
-					m_predicates.emplace_back(std::move(name), parsed_predicate, predicate_file, m_assembler, m_disassembler);
 				}
 			} else {
 				throw error{"Failed to open predicate file \"", predicate_file, "\" for reading."};
@@ -648,13 +672,21 @@ private:
 		}
 
 		m_predicate_distribution = config.predicate_distribution;
-		m_predicate_uniform = decltype(m_predicate_uniform){
+		m_predicate_always_uniform = decltype(m_predicate_always_uniform){
 			0,
-			(m_predicates.empty()) ? 0 : m_predicates.size() - 1,
+			(m_predicates_always.empty()) ? 0 : m_predicates_always.size() - 1,
 		};
-		m_predicate_discrete = decltype(m_predicate_discrete){
-			weights.begin(),
-			weights.end(),
+		m_predicate_never_uniform = decltype(m_predicate_never_uniform){
+			0,
+			(m_predicates_never.empty()) ? 0 : m_predicates_never.size() - 1,
+		};
+		m_predicate_always_discrete = decltype(m_predicate_always_discrete){
+			weights_always.begin(),
+			weights_always.end(),
+		};
+		m_predicate_never_discrete = decltype(m_predicate_never_discrete){
+			weights_never.begin(),
+			weights_never.end(),
 		};
 	}
 
@@ -682,14 +714,27 @@ private:
 		return std::size_t{};
 	}
 
-	[[nodiscard]] auto generate_predicate() -> std::size_t {
+	[[nodiscard]] auto generate_predicate(bool is_taken_branch) -> const predicate& {
 		switch (m_predicate_distribution) {
 			case configuration::predicate_distribution_type::uniform:
-				return m_predicate_uniform(m_random_number_generator);
+				if (is_taken_branch) {
+					return m_predicates_always[m_predicate_always_uniform(m_random_number_generator)];
+				} else {
+					return m_predicates_never[m_predicate_never_uniform(m_random_number_generator)];
+				}
 			case configuration::predicate_distribution_type::discrete:
-				return m_predicate_discrete(m_random_number_generator);
+				if (is_taken_branch) {
+					return m_predicates_always[m_predicate_always_discrete(m_random_number_generator)];
+				} else {
+					return m_predicates_never[m_predicate_never_discrete(m_random_number_generator)];
+				}
+			default:
+				if (is_taken_branch) {
+					return m_predicates_always[0];
+				} else {
+					return m_predicates_never[0];
+				}
 		}
-		return std::size_t{};
 	}
 
 	desync::logger m_logger{};
@@ -702,13 +747,17 @@ private:
 	configuration::predicate_distribution_type m_predicate_distribution{};
 	std::size_t m_junk_length_constant{};
 	std::size_t m_interval_constant{};
+	double m_always_taken_fraction{};
 	std::uniform_int_distribution<std::size_t> m_junk_length_uniform{};
 	std::uniform_int_distribution<std::size_t> m_interval_uniform{};
-	std::uniform_int_distribution<std::size_t> m_predicate_uniform{};
+	std::uniform_int_distribution<std::size_t> m_predicate_always_uniform{};
+	std::uniform_int_distribution<std::size_t> m_predicate_never_uniform{};
 	std::normal_distribution<double> m_junk_length_normal{};
 	std::normal_distribution<double> m_interval_normal{};
-	std::discrete_distribution<std::size_t> m_predicate_discrete{};
-	std::vector<predicate> m_predicates{};
+	std::discrete_distribution<std::size_t> m_predicate_always_discrete{};
+	std::discrete_distribution<std::size_t> m_predicate_never_discrete{};
+	std::vector<predicate> m_predicates_always{};
+	std::vector<predicate> m_predicates_never{};
 	bool m_verbose = false;
 	bool m_print_config = false;
 	bool m_print_assembly = false;

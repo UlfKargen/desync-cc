@@ -33,6 +33,7 @@ public:
 	};
 
 	struct predicate final {
+		std::string_view type{};
 		std::string_view name{};
 		std::string_view body{};
 		// Point for inserting register restoration instructions, if register spilling is used
@@ -75,6 +76,11 @@ private:
 
 	[[nodiscard]] auto read_predicate() -> predicate {
 		auto result = predicate{};
+		try {
+			result.type = read_identifier();
+		} catch (const error& e) {
+			throw make_error("Expected a predicate type specifier.");
+		}
 		result.name = read_identifier();
 		result.parameters = read_parameters();
 		auto body = read_predicate_body();

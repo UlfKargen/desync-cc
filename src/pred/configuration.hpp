@@ -49,6 +49,7 @@ struct configuration final {
 	std::size_t junk_length_uniform_max = default_junk_length;
 	std::size_t interval_uniform_min = default_interval;
 	std::size_t interval_uniform_max = default_interval;
+	double always_taken_fraction = 0.5;
 	double junk_length_normal_mean = static_cast<double>(default_junk_length);
 	double junk_length_normal_stddev = 0.0;
 	double interval_normal_mean = static_cast<double>(default_interval);
