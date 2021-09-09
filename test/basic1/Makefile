@@ -1,8 +1,8 @@
-all:
+main:
 	$(CC) -O3 main.c
 
 clean:
 	rm -f a.out
 
-check:
+check: main
 	./a.out 1 2 3
