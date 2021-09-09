@@ -8,6 +8,8 @@ import os
 from capstone import *
 from elftools.elf.elffile import ELFFile
 
+DEFAULT_FAKE_JUMP_INTERVAL = 5
+
 INSTR_PREFIX_LIST = [
 	0x26,
 	0x2E,
@@ -258,7 +260,10 @@ def main():
 		elf = ELFFile(f)
 		symtab = elf.get_section_by_name('.symtab')
 		desync_list, max_junk_size = get_desync_list(symtab, elf, PRINT_DEBUG_INFO)
-		assert max_junk_size < 256
+		if max_junk_size < 2:
+			# Too few instructions to perfrom a desynchronizing jump
+			max_junk_size = DEFAULT_FAKE_JUMP_INTERVAL
+		assert max_junk_size < 128
 		
 		for symbol in desync_list:			
 			"""
