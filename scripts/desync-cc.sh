@@ -7,8 +7,9 @@ then
 else
   export DESYNC_BINDIR="$(dirname "$(which "$0")")"
 fi
+DEFAULT_CONFIG_BASE_DIR="$(realpath "$DESYNC_BINDIR"/../share)"
 
-export DESYNC_CONFIG_BASE_DIR="$(realpath "$DESYNC_BINDIR"/../../..)"
+export DESYNC_CONFIG_BASE_DIR="${DESYNC_CONFIG_BASE_DIR:-$DEFAULT_CONFIG_BASE_DIR}"
 export DESYNC_CONFIG_FILE="${DESYNC_CONFIG_FILE:-config.cfg}"
 
 # Run GCC with our given subcommand wrapper for each subcommand.

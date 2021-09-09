@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
+set(CMAKE_INSTALL_BINDIR "desync-cc/bin")
+set(CMAKE_INSTALL_DATADIR "desync-cc/share")
+
 project(
-	"desync"
+	"desync-cc"
 	VERSION 1.0.0
 	DESCRIPTION "Automatic Disassembly Desynchronization Obfuscator"
 	LANGUAGES C CXX
@@ -9,10 +12,10 @@ project(
 
 set(DESYNC_USE_CLANG_TIDY OFF CACHE BOOL "Enable static analysis using clang-tidy.")
 
-add_subdirectory("thirdparty/keystone")
-add_subdirectory("thirdparty/capstone")
+add_subdirectory("thirdparty/keystone" EXCLUDE_FROM_ALL)
+add_subdirectory("thirdparty/capstone" EXCLUDE_FROM_ALL)
 remove_definitions(-Werror)
-add_subdirectory("thirdparty/smhasher/src")
+add_subdirectory("thirdparty/smhasher/src" EXCLUDE_FROM_ALL)
 add_definitions(-Werror)
 
 add_executable(
@@ -94,8 +97,6 @@ include(GNUInstallDirs)
 set_target_properties(
 	desync-pred
 	PROPERTIES
-		ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_INSTALL_LIBDIR}"
-		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_INSTALL_LIBDIR}"
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_INSTALL_BINDIR}"
 )
 
@@ -115,23 +116,36 @@ add_custom_target(
 
 add_custom_target(
 	copy-desync-junk-file ALL
-	COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/desync_jb_generator.py" "${CMAKE_INSTALL_BINDIR}/desync-junk"
+	COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/src/junk/desync_jb_generator.py" "${CMAKE_INSTALL_BINDIR}/desync-junk"
 	COMMENT "Copying desync_jb_generator.py to ${CMAKE_INSTALL_BINDIR}/desync-junk"
+	DEPENDS desync-pred
+)
+
+add_custom_target(
+	copy-config-dir ALL
+	COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/config" "${CMAKE_INSTALL_DATADIR}"
+	COMMENT "Copying config directory to ${CMAKE_INSTALL_DATADIR}"
 	DEPENDS desync-pred
 )
 
 install(
 	TARGETS desync-pred
-	ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-	LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
 	RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
 install(
 	FILES
-		"${CMAKE_CURRENT_SOURCE_DIR}/desync/desync"
-		"${CMAKE_CURRENT_SOURCE_DIR}/desync/desync-junk"
+		"${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/desync-cc"
+		"${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/desync-cc-subcommand"
+        "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/desync-junk"
+   PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 	DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
+
+install(
+	DIRECTORY
+		"${CMAKE_CURRENT_SOURCE_DIR}/config/"
+	DESTINATION "${CMAKE_INSTALL_DATADIR}"
 )
 
 include(CTest)

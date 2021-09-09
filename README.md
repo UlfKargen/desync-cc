@@ -1,13 +1,14 @@
-# Desync
+# desync-cc
 
 Automatic Disassembly Desynchronization Obfuscator.
 
 ## Prerequisites
 
-For the python scripts to run capstone module needs to be installed.
+For the Python scripts to run, the `capstone` and `pyelftools` modules needs to be installed.
 Can be installed with:
+
 ```sh
-pip install capstone
+pip install capstone pyelftools
 ```
 
 The C++ project requires the following packages to build and install:

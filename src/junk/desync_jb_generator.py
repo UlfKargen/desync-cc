@@ -5,7 +5,6 @@ import random
 import math
 import datetime
 import os
-from itertools import combinations
 from capstone import *
 from elftools.elf.elffile import ELFFile
 
@@ -215,7 +214,6 @@ def main():
 	"""
 	main_start_time = datetime.datetime.now()
 	
-	
 	PRINT_DEBUG_INFO = bool(os.getenv("DESYNC_JUNK_DEBUG"))
 	PRINT_BENCHMARK_INFO = bool(os.getenv("DESYNC_JUNK_BENCMARK"))
 
@@ -241,8 +239,12 @@ def main():
 	"""
 	Benchmark variables.
 	"""
-	desynced = 0
-	undesynced = 0
+	desynced_always = 0
+	undesynced_always = 0
+
+	desynced_never = 0
+	failed_valid_never = 0
+	failed_invalid_never = 0
 	
 	max_symbol_loop_time = 0
 	min_symbol_loop_time = math.inf
@@ -299,6 +301,7 @@ def main():
 					desync_instr_list = get_disasm_instr_list(code[target:])
 					desync_length = get_disasm_length(desync_instr_list)
 					if desync_length >= org_length - target:
+						desynced_never += 1
 						if PRINT_DEBUG_INFO:
 							print('Found desynchronizing jump offset: {}\n'.format(target))
 							print('--- Desynchronized Code ---')
@@ -313,9 +316,12 @@ def main():
 					jump_targets = [i for i in range(1, max_junk_size) if i not in possible_jump_targets]
 					if not jump_targets:
 						# Not possible to find valid targets, just pick a random target
+						failed_invalid_never += 1
 						if PRINT_DEBUG_INFO:
 							print('and no valid offset found...', end = '')
 						jump_targets = range(1, max_junk_size)
+					else:
+						failed_valid_never += 1
 					target = random.sample(jump_targets, 1)[0]
 					if PRINT_DEBUG_INFO:
 						print('picked offset {}'.format(target))
@@ -368,13 +374,13 @@ def main():
 				Write the changes to the file.			
 				"""
 				if junk_bytes:
-					desynced += 1
+					desynced_always += 1
 					if PRINT_DEBUG_INFO:
 						print('**********\n Success for symbol # {} \n**********\n'.format(symbol.index))				
 					f.seek(symbol.offset)
 					f.write(bytes(junk_bytes))
 				else:
-					undesynced += 1
+					undesynced_always += 1
 					if PRINT_DEBUG_INFO:
 						print('**********\n Failure for symbol # {} \n************'.format(symbol.index))
 						print('No suitable junk bytes found\n')
@@ -409,10 +415,12 @@ def main():
 	if PRINT_BENCHMARK_INFO:
 		print('\n--- BENCHMARK RESULTS ---\n')
 		
-		print('Number of successful desynchronizations: {}'.format(desynced))
-		print('Number of unsuccessful desynchronizations: {}\n'.format(undesynced))
-		
 		print('Total execution time (s): {}\n'.format(main_exec_time))
+
+		print('--- Always taken branches ---\n')
+
+		print('Number of successful desynchronizations: {}'.format(desynced_always))
+		print('Number of unsuccessful desynchronizations: {}\n'.format(undesynced_always))
 		
 		print('Maximum desynchronization loop time (ms): {}'.format(max_symbol_loop_time))
 		print('Minimum desynchronization loop time (ms): {}'.format(min_symbol_loop_time))
@@ -423,6 +431,12 @@ def main():
 		print('Minimum amount of loops needed to desynchronize: {}'.format(min_symbol_loops))
 		if desync_list:
 			print('Average amount of loops needed to desynchronize: {:.3f}\n'.format(total_symbol_loops / len(desync_list)))
+
+		print('--- Never taken branches ---\n')
+
+		print('Number of successful desynchronizations: {}'.format(desynced_never))
+		print('Number of unsuccessful desynchronizations with valid disassembly: {}'.format(failed_valid_never))
+		print('Number of unsuccessful desynchronizations with invalid disassembly: {}\n'.format(failed_invalid_never))
 
 if __name__ == '__main__':
 	main()
