@@ -34,7 +34,6 @@ public:
 	auto write(const auto&... args) const -> void {
 		if (m_file.is_open()) {
 			(m_file << ... << args);
-			(std::clog << ... << args);
 		} else {
 			(std::clog << ... << args);
 		}
