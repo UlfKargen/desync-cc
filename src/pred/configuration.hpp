@@ -175,6 +175,10 @@ private:
 						throw error{"Invalid register spilling setting \"", value, "\""};
 					}
 				}},
+			{"always_taken_fraction",
+				[](configuration& config, std::string_view value) -> void {
+					config.junk_length_normal_stddev = std::stod(std::string{value});
+				}},
 			{"junk_length_distribution",
 				[](configuration& config, std::string_view value) -> void {
 					if (value == "constant") {
