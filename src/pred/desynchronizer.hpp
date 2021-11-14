@@ -320,9 +320,9 @@ private:
 			if ((free_registers & m_used_registers) != m_used_registers){
 				return result; // registers needed by predicate are not free
 			}
-			if (free_registers.count() < m_parameters.size()){
-				return result; // not enough free registers
-			}
+			// if (free_registers.count() < m_parameters.size()){
+			// 	return result; // not enough free registers
+			// }
 			result.emplace(pick_registers(std::span{m_parameters}, free_registers, g));
 
 			return result;
