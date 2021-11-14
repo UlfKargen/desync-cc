@@ -1,9 +1,7 @@
-predicate always diablo1(reg_a: r64, reg_b: r64, reg_c: r64) {
+predicate always diablo1a(reg_a: r64, reg_b: r64, reg_c: r64) {
    /* "7y^2-1!=x^2 */
-   /* Overflow elimination */
-   andq         $1073741823,%reg_c //0x3fffffff
-   andq         $4294967295,%reg_a //0xffffffff
-   /* Opaque predicate*/
+   andq         $16383,%reg_c
+   andq         $65535,%reg_a
    imulq        %reg_c, %reg_c
    leaq         0(,%reg_c,8), %reg_b
    subq         %reg_c, %reg_b
@@ -13,75 +11,139 @@ predicate always diablo1(reg_a: r64, reg_b: r64, reg_c: r64) {
    jnz DESYNC
 }
 
-predicate never diablo2(reg_a: r64, reg_b: r64) {
+predicate never diablo1n(reg_a: r64, reg_b: r64, reg_c: r64) {
+   /* "7y^2-1!=x^2 */
+   andq         $16383,%reg_c
+   andq         $65535,%reg_a
+   imulq        %reg_c, %reg_c
+   leaq         0(,%reg_c,8), %reg_b
+   subq         %reg_c, %reg_b
+   decq         %reg_b
+   imulq        %reg_a, %reg_a
+   cmpq         %reg_a, %reg_b
+   jz DESYNC
+}
+
+predicate always diablo2a(reg_a: r64, reg_b: r64) {
    /* 1) 2|x+x^2 {{{ */
-   /* Overflow elimination */
-   andq         $2147483647,%reg_a //0x7fffffff
+   andq         $32767,%reg_a
    /* Opaque predicate*/
    movq         %reg_a, %reg_b
    imulq        %reg_a, %reg_b
    addq         %reg_b, %reg_a
    andq         $1, %reg_a
-   jnz DESYNC
+   jz DESYNC
 }
 
-predicate always diablo3(reg_a: r32) {
-   /* 2) 3|(x^3-x) {{{ */
-   /* Overflow elimination */
-   andl         $1023,%reg_a //0x3ff
+predicate never diablo2n(reg_a: r64, reg_b: r64) {
+   /* 1) 2|x+x^2 {{{ */
+   andq         $32767,%reg_a
    /* Opaque predicate*/
+   movq         %reg_a, %reg_b
+   imulq        %reg_a, %reg_b
+   addq         %reg_b, %reg_a
+   andq         $1, %reg_a
+   ja DESYNC
+}
+
+predicate always diablo3a(reg_a: r32) {
+   /* 2) 3|(x^3-x) {{{ */
+   andl         $1023,%reg_a
    movl         %reg_a, %eax
    imull        %reg_a, %eax
    imull        %reg_a, %eax
    subl         %reg_a, %eax
    movl         $3, %edx
    movl         %edx, %reg_a
-   cltd                   //double word to quad word
-   idivl        %reg_a      // eax= (edx:eax)/ecx edx=ramainder
+   cltd                  
+   idivl        %reg_a
    testl        %edx, %edx
-   jz DESYNC
+   jbe DESYNC
 }
 
-predicate never diablo4(reg_a: r64) {
+predicate never diablo3n(reg_a: r32) {
+   /* 2) 3|(x^3-x) {{{ */
+   andl         $1023,%reg_a
+   movl         %reg_a, %eax
+   imull        %reg_a, %eax
+   imull        %reg_a, %eax
+   subl         %reg_a, %eax
+   movl         $3, %edx
+   movl         %edx, %reg_a
+   cltd                  
+   idivl        %reg_a
+   testl        %edx, %edx
+   jg DESYNC
+}
+
+predicate always diablo4a(reg_a: r64) {
    /* 3) x^2>=0{{{ */
-   /* Overflow elimination */
-   andq         $4294967295,%reg_a //0xffffffff
-   /* Opaque predicate*/
+   andq         $65535,%reg_a
+   imulq        %reg_a, %reg_a
+   testq        $0, %reg_a
+   jns DESYNC
+}
+
+predicate never diablo4n(reg_a: r64) {
+   /* 3) x^2>=0{{{ */
+   andq         $65535,%reg_a
    imulq        %reg_a, %reg_a
    testq        $0, %reg_a
    js DESYNC
 }
 
-predicate always diablo5(reg_a: r32) {
+predicate always diablo5a(reg_a: r32) {
    /* 4) 2|x+x {{{ */
-   /* Overflow elimination */
-   andl         $2147483647,%reg_a //0x7fffffff
-   /* Opaque predicate*/
+   andl         $2147483647,%reg_a
    addl         %reg_a, %reg_a
-   andl         $1, %reg_a //addl defines also the Parity flag, but the parity flag is wrong when there is an overflow (out of experimental results)
+   andl         $1, %reg_a
    jp DESYNC
 }
 
-predicate never diablo6(reg_a: r32) {
-   /* 5) 2|x+x {{{ */
-   /* Take a (maybe) life variable */
-   movl         %eax, %reg_a
-   /* Overflow elimination */
-   andl         $2147483647,%reg_a //0x7fffffff
-   /* Opaque predicate*/
+predicate never diablo5n(reg_a: r32) {
+   /* 4) 2|x+x {{{ */
+   andl         $2147483647,%reg_a
    addl         %reg_a, %reg_a
-   andl         $1, %reg_a //addl defines also the Parity flag, but the parity flag is wrong when there is an overflow (out of experimental results)
+   andl         $1, %reg_a
    jnp DESYNC
 }
 
-predicate always diablo7(reg_a: r64) {
+predicate always diablo6a(reg_a: r32) {
+   /* 5) 2|x+x {{{ */
+   /* Take a (maybe) life variable */
+   movl         %eax, %reg_a
+   andl         $2147483647,%reg_a
+   addl         %reg_a, %reg_a
+   andl         $1, %reg_a
+   jp DESYNC
+}
+
+predicate never diablo6n(reg_a: r32) {
+   /* 5) 2|x+x {{{ */
+   /* Take a (maybe) life variable */
+   movl         %eax, %reg_a
+   andl         $2147483647,%reg_a
+   addl         %reg_a, %reg_a
+   andl         $1, %reg_a
+   jnp DESYNC
+}
+
+predicate always diablo7a(reg_a: r64) {
    /* 6) 2|x*x/2 Arboit {{{ */
-   /* store changed regs ATT: Check flags! */
-   /* Overflow elimination */
-   andq         $4294967295,%reg_a //0xffffffff
+   andq         $65535,%reg_a
    imulq        %reg_a,%reg_a
    shrq         $1,%reg_a
    andq         $1,%reg_a
    testq        %reg_a,%reg_a
-   jz DESYNC
+   jle DESYNC
+}
+
+predicate never diablo7n(reg_a: r64) {
+   /* 6) 2|x*x/2 Arboit {{{ */
+   andq         $65535,%reg_a
+   imulq        %reg_a,%reg_a
+   shrq         $1,%reg_a
+   andq         $1,%reg_a
+   testq        %reg_a,%reg_a
+   jnz DESYNC
 }
