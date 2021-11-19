@@ -44,6 +44,7 @@ public:
 			result = arguments.front().string;
 			if (arguments.size() >= 2) {
 				result.push_back(' ');
+
 				result.append(zero_out_constant_operand(arguments[1].string));
 				for (const auto& argument : std::span{arguments}.subspan(2)) {
 					result.append(", ");
@@ -130,7 +131,7 @@ private:
 			advance();
 		}
 		auto result = m_code.substr(begin, end - begin);
-		if (is_prefix(result)){
+		if (type != statement_type::label && is_prefix(result)){
 			type = statement_type::prefix;
 		}
 		return statement{result, type};
