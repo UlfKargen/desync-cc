@@ -177,7 +177,7 @@ private:
 				}},
 			{"always_taken_fraction",
 				[](configuration& config, std::string_view value) -> void {
-					config.junk_length_normal_stddev = std::stod(std::string{value});
+					config.always_taken_fraction = std::stod(std::string{value});
 				}},
 			{"junk_length_distribution",
 				[](configuration& config, std::string_view value) -> void {
