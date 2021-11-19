@@ -28,7 +28,8 @@
 #include <util/file.hpp>               // desync::util::read_file
 #include <util/string.hpp>             // desync::util::concat
 #include <utility>                     // std::move
-#include <vector>                      // std::vector
+#include <vector>    
+#include <set>
 
 namespace desync {
 
@@ -120,14 +121,15 @@ private:
 				if (std::regex_match(std::string{instructions[i].string}, m_instruction_pattern)) {
 					if (const auto arguments = predicate.find_arguments(~instructions[i].live_registers, ~instructions[i].live_flags, m_random_number_generator)) {
 						auto missing_arg_count = predicate.parameters().size() - arguments->size();
-						if(missing_arg_count == 0 || m_use_spilling) {
+						auto used_live_regs = instructions[i].live_registers & predicate.used_registers();
+						if((missing_arg_count == 0 && used_live_regs.none()) || m_use_spilling) {
 							auto to_spill = std::optional<std::vector<std::string>>{};
 							auto argument_names = std::vector<std::string>{};
 							for(auto idx : *arguments) {
 								argument_names.emplace_back(m_disassembler.register_name(idx));
 							}
 							// if we use register spilling, allocate additional registers as spilled ones
-							if(missing_arg_count) {
+							if(missing_arg_count || used_live_regs.any()) {
 								auto already_allocated = std::bitset<disassembler::register_count>{};
 								for(auto idx : *arguments) {
 									already_allocated.set(idx);
@@ -143,6 +145,17 @@ private:
 								for(auto idx : allocated_regs) {
 									argument_names.emplace_back(m_disassembler.register_name(idx));
 									parent_registers.emplace_back(m_disassembler.register_name(disassembler::parent_register(idx)));
+								}
+								// also spill any registers implicitly used in predicate
+								std::set<unsigned> live_parents{};
+								for(size_t i = 0; i < used_live_regs.size(); ++i) {
+									if(used_live_regs[i]) {
+										//std::cout << "IMPLICIT: " << m_disassembler.register_name(disassembler::parent_register(i)) << std::endl;
+										live_parents.insert(disassembler::parent_register(i));
+									}
+								}
+								for(auto i : live_parents) {
+									parent_registers.emplace_back(m_disassembler.register_name(i));
 								}
 							}
 							const auto assembly_index = get_instruction_start(assembly, instructions[i]);
@@ -317,9 +330,9 @@ private:
 			if ((free_flags & m_required_flags) != m_required_flags){
 				return result; // flags needed by predicate are not free
 			}
-			if ((free_registers & m_used_registers) != m_used_registers){
-				return result; // registers needed by predicate are not free
-			}
+			// if ((free_registers & m_used_registers) != m_used_registers){
+			// 	return result; // registers needed by predicate are not free
+			// }
 			// if (free_registers.count() < m_parameters.size()){
 			// 	return result; // not enough free registers
 			// }
@@ -396,6 +409,10 @@ private:
 
 		[[nodiscard]] auto parameters() const noexcept -> std::span<const parameter_type> {
 			return std::span{m_parameters};
+		}
+
+		[[nodiscard]] auto used_registers() const noexcept -> std::bitset<disassembler::register_count> {
+			return m_used_registers;
 		}
 
 	private:
