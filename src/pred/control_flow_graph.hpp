@@ -289,8 +289,12 @@ private:
 			assert(m_disassembler);
 			const auto access = m_disassembler->access(info);
 			block.live_registers &= ~access.registers_written; // registers that are overwritten are not live
-			if (m_disassembler->is_call(info))
+			if (m_disassembler->is_call(info)) {
 				block.live_registers &= ~call_convention(block); // add registers freed by calling convention as "not live"
+				block.live_flags.reset(); // flags are not live across function calls
+			} else if (m_disassembler->is_ret(info)) {
+				block.live_flags.reset(); // flags are not live across function calls
+			} 
 			block.live_registers |= disassembler::related_registers(access.registers_read); // registers that are read are live
 			block.live_flags &= ~access.flags_written; // flags that are overwritten are not live
 			block.live_flags |= access.flags_read; // flags that are read are live

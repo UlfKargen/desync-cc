@@ -127,6 +127,16 @@ public:
 		}
 		return false;
 	}
+
+	[[nodiscard]] static auto is_ret(const cs_insn& info) -> bool {
+		for (auto group_index = std::uint8_t{0}; group_index < info.detail->groups_count; ++group_index) {
+			const auto& group = info.detail->groups[group_index];
+			if (group == CS_GRP_RET){
+				return true;
+			}
+		}
+		return false;
+	}
 	
 
 	[[nodiscard]] static auto is_unconditional_jump(const cs_insn& info) -> bool {
