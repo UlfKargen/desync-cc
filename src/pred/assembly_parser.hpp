@@ -8,11 +8,17 @@
 #include <string>      // std::string
 #include <string_view> // std::string_view
 #include <vector>      // std::vector
+#include <stdexcept>   // std::runtime_error
 
 namespace desync {
 
 class assembly_parser final {
 public:
+	struct unsafe_branch_error final : std::runtime_error {
+		[[nodiscard]] explicit unsafe_branch_error(const auto&... args)
+			: std::runtime_error(util::concat(args...)) {}
+	};
+
 	enum class statement_type : std::uint8_t {
 		instruction,
 		label,
@@ -44,7 +50,15 @@ public:
 			result = arguments.front().string;
 			if (arguments.size() >= 2) {
 				result.push_back(' ');
-
+				
+				// Deal with branches with hardcoded offsets, which cannot be handled safely by desync-cc
+				if(arguments.front().string[0] == 'j' && 
+				   arguments.size() == 2 &&
+					!arguments[1].string.empty() && arguments[1].string[0] >= '0' && arguments[1].string[0] <= '9') 
+				{
+					throw unsafe_branch_error{instruction_string};
+				}
+				
 				result.append(zero_out_constant_operand(arguments[1].string));
 				for (const auto& argument : std::span{arguments}.subspan(2)) {
 					result.append(", ");

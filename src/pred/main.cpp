@@ -3,6 +3,7 @@
 #include <pred/configuration.hpp>  // desync::configuration
 #include <pred/desynchronizer.hpp> // desync::desynchronizer
 #include <pred/options.hpp>        // desync::options
+#include <pred/assembly_parser.hpp>// desync::assembly_parser::unsafe_branch_error
 #include <stdexcept>               // std::exception
 #include <string>                  // std::string
 #include <util/file.hpp>           // desync::util::read_file, desync::util::write_file
@@ -53,18 +54,18 @@ auto configure(desync::desynchronizer& desynchronizer, desync::configuration& co
 			config_file.append(options.config_file);
 		}
 		if (config_file.size() == config.base_dir.size()) {
-			println("desync: Warning: No config specified. Using default configuration.");
+			println("desync-cc: WARNING: No config specified. Using default configuration.");
 		} else if (auto config_string = desync::util::read_file(config_file.c_str())) {
 			config.parse_string(*config_string);
 		} else {
-			println("desync: Failed to open config file \"", config_file, "\" for reading.");
+			println("desync-cc: Failed to open config file \"", config_file, "\" for reading.");
 			return false;
 		}
 	}
 	if (const auto* const env_log_file_path = std::getenv("DESYNC_LOG_FILE")) {
 	   config.log_file = env_log_file_path;
       if (!config.log_file.empty() && config.log_file[0] != '/') {
-         println("desync: Absolute path must be specified when using DESYNC_LOG_FILE.");
+         println("desync-cc: Absolute path must be specified when using DESYNC_LOG_FILE.");
          return false;
       }
 	}
@@ -110,7 +111,7 @@ auto main(int argc, char* argv[]) -> int {
 			const auto filename = std::string{argument};
 			const auto assembly = desync::util::read_file(filename.c_str());
 			if (!assembly) {
-				println("desync: Failed to open file \"", filename, "\" for reading.");
+				println("desync-cc: Failed to open file \"", filename, "\" for reading.");
 				error = true;
 				continue;
 			}
@@ -118,18 +119,23 @@ auto main(int argc, char* argv[]) -> int {
 			try {
 				const auto hash = hash_murmur3(&*assembly);
 				new_assembly = desynchronizer.apply_predicates(filename, *assembly, hash);
+			}  catch (const desync::assembly_parser::unsafe_branch_error& e) {
+				println("desync-cc: WARNING: Detected (presumably handwritten) assembly with hardcoded branch offset: ", e.what(),
+						  " in ", filename, "\nHardcoded offsets cannot be handled safely by desync-cc! Aborting.");
+				error = true;
+				break;
 			} catch (const std::exception& e) {
-				println("desync: ", filename, ": ", e.what());
+				println("desync-cc: ", filename, ": ", e.what());
 				error = true;
 				continue;
 			} catch (...) {
-				println("desync: Failed to process file \"", filename, "\".");
+				println("desync-cc: Failed to process file \"", filename, "\".");
 				error = true;
 				continue;
 			}
 			if (!config.dry_run) {
 				if (!desync::util::write_file(filename.c_str(), new_assembly)) {
-					println("desync: Failed to open file \"", filename, "\" for writing.");
+					println("desync-cc: Failed to open file \"", filename, "\" for writing.");
 					error = true;
 				}
 			}
@@ -140,10 +146,10 @@ auto main(int argc, char* argv[]) -> int {
 			return EXIT_FAILURE;
 		}
 	} catch (const std::exception& e) {
-		println("desync: Fatal error: ", e.what());
+		println("desync-cc: Fatal error: ", e.what());
 		return EXIT_FAILURE;
 	} catch (...) {
-		println("desync: Fatal error!");
+		println("desync-cc: Fatal error!");
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
