@@ -217,7 +217,7 @@ def main():
 	main_start_time = datetime.datetime.now()
 	
 	PRINT_DEBUG_INFO = bool(os.getenv("DESYNC_JUNK_DEBUG"))
-	PRINT_BENCHMARK_INFO = bool(os.getenv("DESYNC_JUNK_BENCMARK"))
+	PRINT_BENCHMARK_INFO = bool(os.getenv("DESYNC_JUNK_BENCHMARK"))
 
 	"""
 	Retrieve the arguments, namely the name of the binary that is to be
