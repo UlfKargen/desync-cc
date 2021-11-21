@@ -25,7 +25,15 @@ Optional packages for development:
 
 ## Building
 
-In the project directory, run the following commands:
+The project uses third party code from Keystone, Capstone and SMHasher as git submodules. 
+After cloning the repository, you need to also fetch the third party code by running (in the project directory):
+
+```sh
+git submodule init
+git submodule update
+```
+
+To build, run the following commands in the project directory:
 
 ```sh
 mkdir build && cd build     # Create build directory and change to it.
