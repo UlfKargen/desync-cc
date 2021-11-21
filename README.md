@@ -103,7 +103,7 @@ DESYNC_JUNK_BENCHMARK=1    # Have the junk-byte generator print performance stat
 
 ## Compatibility
 
-desync-cc should work with any program written in any language supported by gcc (it has been tested for C and C++), with *one important exception*: if the program uses hand-written assembly with _hardcoded_ offsets, those offsets will likely be incorrect after desync-cc has added instructions to the assembly, which would often result in subtly faulty generated code. The tool makes some effort to detect this, but those checks are not complete!
+desync-cc should work with any program written in any language supported by gcc (it has been tested for C and C++), with **one important exception**: if the program uses hand-written assembly with _hardcoded_ offsets, those offsets will likely be incorrect after desync-cc has added instructions to the assembly, which would often result in subtly faulty generated code. The tool makes some effort to detect this, but those checks are not complete!
 
 You must make sure to not use the obfuscator on such programs, or to rewrite the assembly to use symbolic labels.
 
