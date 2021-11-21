@@ -1,0 +1,18 @@
+Authors
+=======
+
+The conceptualization and high-level design for the tool was done by Ulf Kargén.
+
+Stage 1 - the predicate-insertion component that works on intermediate 
+assembly files - was originally written by Ivar Härnqvist and Johannes Wilson.
+
+Stage 2 - the junk-byte generator that works on the final binary - was
+originally written by Gustav Eriksson and Evelina Holmgren.
+
+Ulf Kargén has contributed with various bugfixes and feature additions to both
+components.
+
+The opaque predicates in config/predicates/diablo.txt originate from the LOCO
+tool in the Diablo framework (https://diablo.elis.ugent.be/), Copyright (C) 
+2016 The Diablo Team.
+
