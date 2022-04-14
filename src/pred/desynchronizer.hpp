@@ -19,6 +19,7 @@
 #include <pred/predicate_parser.hpp>   // desync::predicate_parser
 #include <random>                      // std::mt19937, std::random_device, std::..._distribution
 #include <regex>                       // std::regex, std::regex_match
+#include <ranges>                      // std::views
 #include <span>                        // std::span
 #include <sstream>                     // std::ostringstream
 #include <stdexcept>                   // std::runtime_error
